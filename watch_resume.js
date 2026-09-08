@@ -268,6 +268,15 @@
       var i = _toPrimitive(t, "string");
       return "symbol" == typeof i ? i : i + "";
     }
+    function _typeof(o) {
+      "@babel/helpers - typeof";
+
+      return _typeof = "function" == typeof Symbol && "symbol" == typeof Symbol.iterator ? function (o) {
+        return typeof o;
+      } : function (o) {
+        return o && "function" == typeof Symbol && o.constructor === Symbol && o !== Symbol.prototype ? "symbol" : typeof o;
+      }, _typeof(o);
+    }
     function _unsupportedIterableToArray(r, a) {
       if (r) {
         if ("string" == typeof r) return _arrayLikeToArray(r, a);
@@ -282,10 +291,10 @@
     var WRITE_INTERVAL_MS = 15000;
     var TORRSERVER_WRITE_INTERVAL_MS = 30000;
 
-    var text$2 = function text(value) {
+    var text$4 = function text(value) {
       return typeof value === 'string' ? value.trim() : '';
     };
-    var number$1 = function number(value) {
+    var number$3 = function number(value) {
       return Number.isFinite(Number(value)) ? Number(value) : 0;
     };
     var validAlias = function validAlias(value) {
@@ -304,10 +313,10 @@
     };
     function cardIdentity() {
       var card = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {};
-      var source = text$2(card.source) || 'tmdb';
+      var source = text$4(card.source) || 'tmdb';
       var id = card.id;
       var tmdb = card.tmdb_id || (source === 'tmdb' ? id : 0);
-      var imdb = text$2(card.imdb_id);
+      var imdb = text$4(card.imdb_id);
       var kinopoisk = card.kinopoisk_id || 0;
       var aliases = [];
       if (id !== undefined && id !== null) aliases.push('source:' + source + ':' + id);
@@ -330,10 +339,10 @@
     }
     function sanitizeProgress() {
       var input = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {};
-      var duration = Math.max(0, number$1(input.duration));
-      var time = Math.max(0, number$1(input.time));
+      var duration = Math.max(0, number$3(input.duration));
+      var time = Math.max(0, number$3(input.time));
       var calculated = duration ? time / duration * 100 : 0;
-      var percent = Math.max(0, Math.min(100, number$1(input.percent) || calculated));
+      var percent = Math.max(0, Math.min(100, number$3(input.percent) || calculated));
       return {
         time: time,
         duration: duration,
@@ -353,43 +362,49 @@
       var episode = input.episode || {};
       var base = {
         mode: mode,
-        updated_at: Math.max(0, number$1(input.updated_at)),
+        updated_at: Math.max(0, number$3(input.updated_at)),
         episode: {
-          season: Math.max(0, number$1(episode.season)),
-          episode: Math.max(0, number$1(episode.episode)),
-          timeline_hash: text$2(episode.timeline_hash)
+          season: Math.max(0, number$3(episode.season)),
+          episode: Math.max(0, number$3(episode.episode)),
+          timeline_hash: text$4(episode.timeline_hash)
         },
         progress: sanitizeProgress(input.progress),
         playlist: {
           kind: 'season',
-          selected_season: Math.max(0, number$1(episode.season)),
-          selected_episode: Math.max(0, number$1(episode.episode))
+          selected_season: Math.max(0, number$3(episode.season)),
+          selected_episode: Math.max(0, number$3(episode.episode))
         }
       };
       if (mode === 'online') {
         var source = input.online || {};
         var search = source.search || {};
         base.online = {
-          component: text$2(source.component) || 'lampac',
-          balanser: text$2(source.balanser),
-          voice_id: text$2(source.voice_id),
-          voice_name: text$2(source.voice_name),
-          clarification: text$2(source.clarification),
+          component: text$4(source.component) || 'lampac',
+          balanser: text$4(source.balanser),
+          voice_id: text$4(source.voice_id),
+          voice_name: text$4(source.voice_name),
+          clarification: text$4(source.clarification),
           search: {
-            title: text$2(search.title),
-            original_title: text$2(search.original_title),
-            year: Math.max(0, number$1(search.year))
+            title: text$4(search.title),
+            original_title: text$4(search.original_title),
+            year: Math.max(0, number$3(search.year))
           }
         };
+        if (source.season_index !== undefined) {
+          base.online.season_index = Math.max(0, number$3(source.season_index));
+        }
+        if (source.voice_index !== undefined) {
+          base.online.voice_index = Math.max(0, number$3(source.voice_index));
+        }
         if (!base.online.balanser) return null;
       } else {
         var _source = input.torrent || {};
         base.torrent = {
-          infohash: text$2(_source.infohash).toUpperCase(),
-          magnet: text$2(_source.magnet).indexOf('magnet:') === 0 ? text$2(_source.magnet) : '',
-          file_index: Math.max(0, number$1(_source.file_index)),
-          file_path: text$2(_source.file_path),
-          torrent_title: text$2(_source.torrent_title)
+          infohash: text$4(_source.infohash).toUpperCase(),
+          magnet: text$4(_source.magnet).indexOf('magnet:') === 0 ? text$4(_source.magnet) : '',
+          file_index: Math.max(0, number$3(_source.file_index)),
+          file_path: text$4(_source.file_path),
+          torrent_title: text$4(_source.torrent_title)
         };
         if (!base.torrent.infohash || !base.torrent.file_path) return null;
       }
@@ -426,14 +441,14 @@
       return root;
     }
 
-    var text$1 = function text(value) {
+    var text$3 = function text(value) {
       return typeof value === 'string' ? value.trim() : '';
     };
-    var number = function number(value) {
+    var number$2 = function number(value) {
       return Number.isFinite(Number(value)) ? Number(value) : 0;
     };
-    var timelineHash = function timelineHash(item) {
-      return text$1(item && (item.timeline_hash || item.timeline && item.timeline.hash || item.hash));
+    var timelineHash$1 = function timelineHash(item) {
+      return text$3(item && (item.timeline_hash || item.timeline && item.timeline.hash || item.hash));
     };
     var sameProgress = function sameProgress(left, right) {
       return left.time === right.time && left.duration === right.duration && left.percent === right.percent;
@@ -441,28 +456,82 @@
     function onlineRecipe() {
       var input = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {};
       var search = input.search || {};
-      return {
-        component: text$1(input.component) || 'lampac',
-        balanser: text$1(input.balanser),
-        voice_id: text$1(input.voice_id),
-        voice_name: text$1(input.voice_name),
-        clarification: text$1(input.clarification),
+      var recipe = {
+        component: text$3(input.component) || 'lampac',
+        balanser: text$3(input.balanser),
+        voice_id: text$3(input.voice_id),
+        voice_name: text$3(input.voice_name),
+        clarification: text$3(input.clarification),
         search: {
-          title: text$1(search.title),
-          original_title: text$1(search.original_title),
-          year: number(search.year)
+          title: text$3(search.title),
+          original_title: text$3(search.original_title),
+          year: number$2(search.year)
         }
+      };
+      if (input.season_index !== undefined) recipe.season_index = Math.max(0, number$2(input.season_index));
+      if (input.voice_index !== undefined) recipe.voice_index = Math.max(0, number$2(input.voice_index));
+      return recipe;
+    }
+    function activeCard(Lampa, data) {
+      if (data && data.card) return data.card;
+      if (!Lampa.Activity || typeof Lampa.Activity.active !== 'function') return null;
+      var activity = Lampa.Activity.active() || {};
+      return activity.movie || activity.card || null;
+    }
+    function clarificationFor(Lampa, card) {
+      if (!Lampa.Storage || typeof Lampa.Storage.get !== 'function') return '';
+      var values = Lampa.Storage.get('clarification_search', {}) || {};
+      if (typeof values === 'string') {
+        try {
+          values = JSON.parse(values);
+        } catch (error) {
+          values = {};
+        }
+      }
+      var media = card.name || card.first_air_date || card.number_of_seasons ? 'tv' : 'movie';
+      var source = text$3(card.source) || 'tmdb';
+      var id = card.id || card.tmdb_id || card.kinopoisk_id || card.imdb_id;
+      var modern = id ? ['v2', source, media, id].join(':') : '';
+      if (modern && text$3(values[modern])) return text$3(values[modern]);
+      if (!Lampa.Utils || typeof Lampa.Utils.hash !== 'function') return '';
+      var legacy = Lampa.Utils.hash(card.number_of_seasons ? card.original_name : card.original_title);
+      return text$3(values[legacy]);
+    }
+    function nativeOnlineRecipe(Lampa, data) {
+      if (!data || data.isonline !== true || !Lampa.Storage) return null;
+      var card = activeCard(Lampa, data);
+      if (!card) return null;
+      var balanser = text$3(typeof Lampa.Storage.field === 'function' ? Lampa.Storage.field('active_balanser') : '');
+      if (!balanser) return null;
+      var choices = typeof Lampa.Storage.get === 'function' ? Lampa.Storage.get('online_choice_' + balanser, {}) || {} : {};
+      var choice = choices[card.id] || {};
+      return {
+        card: card,
+        recipe: onlineRecipe({
+          component: 'lampac',
+          balanser: balanser,
+          season_index: choice.season,
+          voice_index: choice.voice,
+          voice_id: data.voice_id || choice.voice_id,
+          voice_name: data.voice_name || choice.voice_name,
+          clarification: clarificationFor(Lampa, card),
+          search: {
+            title: card.title || card.name,
+            original_title: card.original_title || card.original_name,
+            year: String(card.release_date || card.first_air_date || '').slice(0, 4)
+          }
+        })
       };
     }
     function torrentRecipe() {
       var input = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {};
-      var magnet = text$1(input.magnet || input.torrent_magnet);
+      var magnet = text$3(input.magnet || input.torrent_magnet);
       return {
-        infohash: text$1(input.infohash || input.torrent_hash),
+        infohash: text$3(input.infohash || input.torrent_hash),
         magnet: magnet.indexOf('magnet:') === 0 ? magnet : '',
-        file_index: number(input.file_index === undefined ? input.id : input.file_index),
-        file_path: text$1(input.file_path || input.path),
-        torrent_title: text$1(input.torrent_title || input.path_human || input.title)
+        file_index: number$2(input.file_index === undefined ? input.id : input.file_index),
+        file_path: text$3(input.file_path || input.path),
+        torrent_title: text$3(input.torrent_title || input.path_human || input.title)
       };
     }
     function usableTorrent(input) {
@@ -486,11 +555,11 @@
       return resume.recipe || resume;
     }
     function itemMatch(items, data) {
-      var hash = timelineHash(data);
+      var hash = timelineHash$1(data);
       return items.find(function (item) {
-        return timelineHash(item) === hash;
+        return timelineHash$1(item) === hash;
       }) || items.find(function (item) {
-        return number(item.season) === number(data.season) && number(item.episode) === number(data.episode);
+        return number$2(item.season) === number$2(data.season) && number$2(item.episode) === number$2(data.episode);
       }) || data;
     }
     function sameCard(left, right) {
@@ -501,13 +570,13 @@
       });
     }
     function sameItem(left, right) {
-      var leftHash = timelineHash(left);
-      var rightHash = timelineHash(right);
+      var leftHash = timelineHash$1(left);
+      var rightHash = timelineHash$1(right);
       if (leftHash && rightHash) return leftHash === rightHash;
-      if (left && right && text$1(left.torrent_hash) && text$1(right.torrent_hash)) {
-        return text$1(left.torrent_hash) === text$1(right.torrent_hash) && number(left.id) === number(right.id);
+      if (left && right && text$3(left.torrent_hash) && text$3(right.torrent_hash)) {
+        return text$3(left.torrent_hash) === text$3(right.torrent_hash) && number$2(left.id) === number$2(right.id);
       }
-      return Boolean(left && right && (number(left.season) || number(left.episode)) && number(left.season) === number(right.season) && number(left.episode) === number(right.episode));
+      return Boolean(left && right && (number$2(left.season) || number$2(left.episode)) && number$2(left.season) === number$2(right.season) && number$2(left.episode) === number$2(right.episode));
     }
     function createCapture(Lampa, store) {
       var options = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : {};
@@ -516,13 +585,14 @@
       function stagePlayback(data) {
         if (!data) return null;
         var metadata = resumeMetadata$1(data);
-        var card = data.card;
+        var nativeOnline = metadata.mode === 'online' ? null : nativeOnlineRecipe(Lampa, data);
+        var card = data.card || nativeOnline && nativeOnline.card;
         var playlist = Array.isArray(data.playlist) ? data.playlist.slice() : [];
         var selected = itemMatch(playlist, data);
         var items = playlist.length ? playlist : [selected];
         var byHash = {};
         items.forEach(function (item) {
-          var hash = timelineHash(item);
+          var hash = timelineHash$1(item);
           if (hash) byHash[hash] = item;
         });
         if (metadata.mode === 'online' && metadata.online && card) {
@@ -535,11 +605,28 @@
             progress: sanitizeProgress(selected.timeline || {})
           };
         }
+        if (nativeOnline && card) {
+          return {
+            card: card,
+            mode: 'online',
+            online: nativeOnline.recipe,
+            item: selected,
+            byHash: byHash,
+            progress: sanitizeProgress(selected.timeline || {})
+          };
+        }
         var source = metadata.mode === 'torrent' && metadata.torrent ? _objectSpread2(_objectSpread2({}, data), metadata.torrent) : data;
         var torrent = usableTorrent(source);
         if (!torrent || !card) return null;
-        if (!timelineHash(selected) && source && source.timeline_hash) selected.timeline_hash = source.timeline_hash;
-        if (timelineHash(selected)) byHash[timelineHash(selected)] = selected;
+        var context = typeof options.findTorrentContext === 'function' ? options.findTorrentContext(torrent.infohash) : null;
+        if (context) {
+          torrent = _objectSpread2(_objectSpread2({}, torrent), {}, {
+            magnet: torrent.magnet || context.magnet,
+            torrent_title: context.torrent_title || torrent.torrent_title
+          });
+        }
+        if (!timelineHash$1(selected) && source && source.timeline_hash) selected.timeline_hash = source.timeline_hash;
+        if (timelineHash$1(selected)) byHash[timelineHash$1(selected)] = selected;
         return {
           card: card,
           mode: 'torrent',
@@ -555,9 +642,9 @@
           mode: current.mode,
           updated_at: Date.now(),
           episode: {
-            season: number(item.season),
-            episode: number(item.episode),
-            timeline_hash: timelineHash(item)
+            season: number$2(item.season),
+            episode: number$2(item.episode),
+            timeline_hash: timelineHash$1(item)
           },
           progress: sanitizeProgress(current.progress)
         }, current.mode, current.mode === 'online' ? current.online : current.torrent);
@@ -577,13 +664,26 @@
         var data = event && event.data;
         session = stagePlayback(data);
         if (session) {
-          session.launchedHash = timelineHash(session.item);
+          session.launchedHash = timelineHash$1(session.item);
           session.launchedProgress = _objectSpread2({}, session.progress);
         }
+      }
+      function refreshConfirmedPlayback(data) {
+        if (!session || !data) return;
+        var hash = timelineHash$1(data);
+        var current = hash && session.byHash[hash] || (sameItem(session.item, data) ? session.item : null);
+        if (!current) return;
+        var item = _objectSpread2(_objectSpread2(_objectSpread2({}, current), data), {}, {
+          timeline: _objectSpread2(_objectSpread2({}, current.timeline || {}), data.timeline || {})
+        });
+        session.item = item;
+        if (hash) session.byHash[hash] = item;
+        session.progress = sanitizeProgress(item.timeline || {});
       }
       function confirm(data, external) {
         if (!session) session = stagePlayback(data);
         if (!session) return;
+        refreshConfirmedPlayback(data);
         session.confirmed = true;
         session.external = external;
         commit(true);
@@ -596,7 +696,7 @@
       }
       function onTimeline(event) {
         if (!session || !session.confirmed || !event || !event.data) return;
-        var hash = text$1(event.data.hash);
+        var hash = text$3(event.data.hash);
         var item = session.byHash[hash];
         if (!item) return;
         var progress = sanitizeProgress(event.data.road);
@@ -612,7 +712,7 @@
         if (!session || !Array.isArray(playlist)) return;
         session.byHash = {};
         playlist.forEach(function (item) {
-          var hash = timelineHash(item);
+          var hash = timelineHash$1(item);
           if (hash) session.byHash[hash] = item;
         });
         if (playlist[position]) {
@@ -629,7 +729,7 @@
         commit(true);
         setPlaylist(event.playlist, event.position);
         session.item = event.item;
-        var hash = timelineHash(event.item);
+        var hash = timelineHash$1(event.item);
         if (hash) session.byHash[hash] = event.item;
         session.progress = sanitizeProgress(event.item.timeline || {});
         commit(true);
@@ -643,7 +743,7 @@
         if (!torrent || !source.card || !sameCard(session.card, source.card) || !sameItem(session.item, source)) return;
         session.torrent = torrentForItem(source, session.torrent);
         session.item = source;
-        var hash = timelineHash(source);
+        var hash = timelineHash$1(source);
         if (hash) session.byHash[hash] = source;
         if (session.confirmed) commit(true);
       }
@@ -822,7 +922,7 @@
       };
     }
 
-    var SEEN_PERCENT = 90;
+    var SEEN_PERCENT$1 = 90;
     function selectLastMode(history) {
       if (!history || !history.modes) return null;
       return Object.values(history.modes).filter(function (record) {
@@ -843,7 +943,7 @@
       });
       if (index < 0) throw new Error('resume-episode-missing');
       var progress = record && record.progress ? record.progress : {};
-      if (Number(progress.percent) >= SEEN_PERCENT) {
+      if (Number(progress.percent) >= SEEN_PERCENT$1) {
         var nextIndex = index + 1 < items.length ? index + 1 : index;
         var item = items[nextIndex];
         var duration = Number(item && item.timeline && item.timeline.duration);
@@ -875,11 +975,11 @@
         torrent = _ref.torrent,
         launcher = _ref.launcher;
       return {
-        resume: function resume(card, fallback, beforeLaunch) {
+        resume: function resume(card, _openMode, beforeLaunch) {
           return _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee() {
-            var history, record, adapter, resolved, target, opened, _t;
+            var history, record, adapter, prepared, prepare, resolved, target;
             return _regenerator().w(function (_context) {
-              while (1) switch (_context.p = _context.n) {
+              while (1) switch (_context.n) {
                 case 0:
                   history = store.find(card);
                   record = selectLastMode(history);
@@ -890,13 +990,29 @@
                   throw new Error('resume-history-missing');
                 case 1:
                   adapter = record.mode === 'online' ? online : torrent;
-                  _context.p = 2;
-                  _context.n = 3;
-                  return adapter.resolve(card, record);
-                case 3:
+                  prepared = false;
+                  prepare = function prepare() {
+                    if (prepared) return;
+                    prepared = true;
+                    if (typeof beforeLaunch === 'function') beforeLaunch();
+                  };
+                  _context.n = 2;
+                  return adapter.resolve(card, record, {
+                    openMode: function openMode(mode) {
+                      prepare();
+                      return typeof _openMode === 'function' ? _openMode(mode) : false;
+                    }
+                  });
+                case 2:
                   resolved = _context.v;
+                  if (!(resolved && resolved.launched === true)) {
+                    _context.n = 3;
+                    break;
+                  }
+                  return _context.a(2);
+                case 3:
                   target = chooseResumeTarget(record, resolved.playlist);
-                  if (typeof beforeLaunch === 'function') beforeLaunch();
+                  prepare();
                   _context.n = 4;
                   return launcher.launch({
                     item: target.item,
@@ -905,24 +1021,9 @@
                     mode: record.mode
                   });
                 case 4:
-                  _context.n = 7;
-                  break;
-                case 5:
-                  _context.p = 5;
-                  _t = _context.v;
-                  _context.n = 6;
-                  return fallback(record.mode, _t);
-                case 6:
-                  opened = _context.v;
-                  if (!(opened === false)) {
-                    _context.n = 7;
-                    break;
-                  }
-                  throw new Error('resume-fallback-unavailable');
-                case 7:
                   return _context.a(2);
               }
-            }, _callee, null, [[2, 5]]);
+            }, _callee);
           }))();
         }
       };
@@ -1030,6 +1131,14 @@
     var labelFor = function labelFor(record) {
       return 'S' + String(Number(record.episode.season)).padStart(2, '0') + 'E' + String(Number(record.episode.episode)).padStart(2, '0');
     };
+    var actionContainer = function actionContainer(root) {
+      return root.find('.full-start-new__buttons, .full-start__buttons').last();
+    };
+    var modeAction = function modeAction(root, mode) {
+      var container = actionContainer(root);
+      var visible = container.length ? container.find('.view--' + mode).last() : null;
+      return visible && visible.length ? visible : root.find('.view--' + mode).last();
+    };
     var renderButton = function renderButton(Lampa, label) {
       return "<div class=\"full-start__button selector view--watch-resume\">\n    <svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path fill=\"currentColor\" d=\"M8 5v14l11-7z\"/><path fill=\"currentColor\" d=\"M12 2a10 10 0 1 0 10 10h-2a8 8 0 1 1-8-8z\"/></svg>\n    <span>".concat(translation(Lampa, 'watch_resume_continue', 'Continue'), " \xB7 ").concat(label, "</span>\n</div>");
     };
@@ -1037,7 +1146,7 @@
       if (mode !== 'online' && mode !== 'torrent') return false;
       try {
         var root = rootFor(event);
-        var action = root && root.find('.view--' + mode).last();
+        var action = root && modeAction(root, mode);
         if (!action || !action.length) return false;
         action.trigger('hover:enter');
         return true;
@@ -1108,9 +1217,9 @@
             }
           }, _callee, null, [[2, 4, 5, 6]]);
         })));
-        var online = root.find('.view--online').last();
-        var torrent = root.find('.view--torrent').last();
-        var container = root.find('.full-start-new__buttons, .full-start__buttons').last();
+        var container = actionContainer(root);
+        var online = container.length ? container.find('.view--online').last() : root.find('.view--online').last();
+        var torrent = container.length ? container.find('.view--torrent').last() : root.find('.view--torrent').last();
         if (online.length) online.after(button);else if (torrent.length) torrent.after(button);else if (container.length) container.append(button);
       }
       return {
@@ -1137,21 +1246,318 @@
       };
     }
 
+    var DEFAULT_TIMEOUT_MS = 30000;
+    var DEFAULT_POLL_MS = 100;
+    var MIN_LEGACY_SEASON_CANDIDATES = 16;
+    var LEGACY_SEASON_CANDIDATE_SLACK = 8;
+    var SEEN_PERCENT = 90;
+    var text$2 = function text(value) {
+      return value === undefined || value === null ? '' : String(value).trim();
+    };
+    var number$1 = function number(value) {
+      return Number.isFinite(Number(value)) ? Number(value) : 0;
+    };
+    var object = function object(value) {
+      return value && _typeof(value) === 'object' && !Array.isArray(value) ? value : {};
+    };
+    function storageObject(Lampa, key) {
+      if (!Lampa.Storage || typeof Lampa.Storage.get !== 'function') return {};
+      var value = Lampa.Storage.get(key, {});
+      if (value && _typeof(value) === 'object') return value;
+      if (typeof value !== 'string') return {};
+      try {
+        return object(JSON.parse(value));
+      } catch (error) {
+        return {};
+      }
+    }
+    function clarificationKey(card) {
+      var media = card.name || card.first_air_date || card.number_of_seasons ? 'tv' : 'movie';
+      var source = text$2(card.source) || 'tmdb';
+      var id = card.id || card.tmdb_id || card.kinopoisk_id || card.imdb_id;
+      return id ? ['v2', source, media, id].join(':') : '';
+    }
+    function restoreChoices(Lampa, card, record) {
+      if (!Lampa.Storage || typeof Lampa.Storage.set !== 'function') {
+        throw new Error('resume-online-storage');
+      }
+      var recipe = record.online || {};
+      var balanser = text$2(recipe.balanser);
+      if (!balanser) throw new Error('resume-online-balanser');
+      var last = _objectSpread2(_objectSpread2({}, storageObject(Lampa, 'online_last_balanser')), {}, _defineProperty({}, card.id, balanser));
+      Lampa.Storage.set('online_last_balanser', last);
+      Lampa.Storage.set('online_balanser', balanser);
+      Lampa.Storage.set('active_balanser', balanser);
+      var choiceKey = 'online_choice_' + balanser;
+      var choices = _objectSpread2({}, storageObject(Lampa, choiceKey));
+      var previous = object(choices[card.id]);
+      var hasSeasonIndex = recipe.season_index !== undefined;
+      var previousSeason = Object.prototype.hasOwnProperty.call(previous, 'season') ? Math.max(0, number$1(previous.season)) : 0;
+      var seasonIndex = hasSeasonIndex ? Math.max(0, number$1(recipe.season_index)) : previousSeason;
+      choices[card.id] = {
+        season: seasonIndex,
+        voice: Math.max(0, number$1(recipe.voice_index)),
+        voice_name: text$2(recipe.voice_name),
+        voice_id: text$2(recipe.voice_id),
+        episodes_view: _objectSpread2({}, object(previous.episodes_view)),
+        movie_view: text$2(previous.movie_view)
+      };
+      Lampa.Storage.set(choiceKey, choices);
+      var clarification = text$2(recipe.clarification);
+      var key = clarificationKey(card);
+      if (clarification && key) {
+        Lampa.Storage.set('clarification_search', _objectSpread2(_objectSpread2({}, storageObject(Lampa, 'clarification_search')), {}, _defineProperty({}, key, clarification)));
+      }
+      return {
+        choiceKey: choiceKey,
+        hasSeasonIndex: hasSeasonIndex,
+        seasonIndex: seasonIndex
+      };
+    }
+    function setSeasonIndex(Lampa, card, restored, seasonIndex) {
+      var choices = _objectSpread2({}, storageObject(Lampa, restored.choiceKey));
+      var previous = object(choices[card.id]);
+      choices[card.id] = {
+        season: Math.max(0, number$1(seasonIndex)),
+        voice: Math.max(0, number$1(previous.voice)),
+        voice_name: text$2(previous.voice_name),
+        voice_id: text$2(previous.voice_id),
+        episodes_view: _objectSpread2({}, object(previous.episodes_view)),
+        movie_view: text$2(previous.movie_view)
+      };
+      Lampa.Storage.set(restored.choiceKey, choices);
+    }
+    function expectedTimelineHash(Lampa, card, episode) {
+      var stored = text$2(episode && episode.timeline_hash);
+      if (stored) return stored;
+      var title = text$2(card.original_title || card.original_name);
+      var season = number$1(episode && episode.season);
+      var episodeNumber = number$1(episode && episode.episode);
+      if (!title || !season || !episodeNumber || !Lampa.Utils || typeof Lampa.Utils.hash !== 'function') return '';
+      return text$2(Lampa.Utils.hash([season, season > 10 ? ':' : '', episodeNumber, title].join('')));
+    }
+    function seasonCandidates(card, record, initial) {
+      var known = Math.max(1, number$1(card.number_of_seasons), number$1(record.episode && record.episode.season));
+      var total = Math.max(MIN_LEGACY_SEASON_CANDIDATES, known + LEGACY_SEASON_CANDIDATE_SLACK);
+      var result = [Math.max(0, number$1(initial))];
+      for (var index = 0; index < total; index++) {
+        if (result.indexOf(index) < 0) result.push(index);
+      }
+      return result;
+    }
+    function activityRoot(Lampa) {
+      if (!Lampa.Activity || typeof Lampa.Activity.active !== 'function') return null;
+      var active = Lampa.Activity.active() || {};
+      var activity = active.activity;
+      if (!activity || typeof activity.render !== 'function') return null;
+      var rendered = activity.render();
+      if (rendered && typeof rendered.find === 'function') return rendered;
+      return typeof $ === 'function' ? $(rendered) : null;
+    }
+    function timelineHash(data) {
+      return text$2(data && (data.timeline_hash || data.timeline && data.timeline.hash));
+    }
+    function samePlayback(data, hash, season, episode) {
+      var candidateHash = timelineHash(data);
+      if (hash && candidateHash) return hash === candidateHash;
+      return number$1(data && data.season) === number$1(season) && number$1(data && data.episode) === number$1(episode);
+    }
+    function episodeText(node) {
+      return text$2($(node).find('.online-prestige__episode-number').text());
+    }
+    function createNativeOnline(Lampa) {
+      var options = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {};
+      var timeoutMs = Math.max(1, number$1(options.timeoutMs) || DEFAULT_TIMEOUT_MS);
+      var pollMs = Math.max(1, number$1(options.pollMs) || DEFAULT_POLL_MS);
+      return {
+        launch: function launch(card, record, openMode) {
+          var restored = restoreChoices(Lampa, card, record);
+          if (!Lampa.Player || !Lampa.Player.listener) {
+            return Promise.reject(new Error('resume-online-player'));
+          }
+          return new Promise(function (resolve, reject) {
+            var player = Lampa.Player.listener;
+            var savedEpisode = record.episode || {};
+            var savedHash = expectedTimelineHash(Lampa, card, savedEpisode);
+            var replayComponent = text$2(record.online && record.online.component) || 'lampac';
+            var completed = number$1(record.progress && record.progress.percent) >= SEEN_PERCENT;
+            var originActivity = Lampa.Activity && typeof Lampa.Activity.active === 'function' ? Lampa.Activity.active() : null;
+            var candidates = restored.hasSeasonIndex ? [restored.seasonIndex] : seasonCandidates(card, record, restored.seasonIndex);
+            var candidateIndex = 0;
+            var replayActivity = null;
+            var awaitingReplacement = false;
+            var selectedHash = '';
+            var selectedEpisode = number$1(savedEpisode.episode);
+            var selectedProgress = completed ? {
+              time: 0,
+              percent: 0
+            } : {
+              time: Math.max(0, number$1(record.progress && record.progress.time)),
+              duration: Math.max(0, number$1(record.progress && record.progress.duration)),
+              percent: Math.max(0, Math.min(100, number$1(record.progress && record.progress.percent)))
+            };
+            var interval;
+            var timeout;
+            var settled = false;
+            var triggered = false;
+            var rememberReplayActivity = function rememberReplayActivity() {
+              if (!Lampa.Activity || typeof Lampa.Activity.active !== 'function') return;
+              var active = Lampa.Activity.active();
+              if (!active || active === originActivity || text$2(active.component) !== replayComponent) return;
+              if (!replayActivity || awaitingReplacement && active !== replayActivity) {
+                replayActivity = active;
+                awaitingReplacement = false;
+              }
+            };
+            var closeReplayActivity = function closeReplayActivity() {
+              if (!replayActivity || !Lampa.Activity || typeof Lampa.Activity.active !== 'function' || typeof Lampa.Activity.backward !== 'function') return;
+              if (Lampa.Activity.active() !== replayActivity) return;
+              replayActivity = null;
+              awaitingReplacement = false;
+              Lampa.Activity.backward();
+            };
+            var cleanup = function cleanup() {
+              clearInterval(interval);
+              clearTimeout(timeout);
+              player.remove('create', onCreate);
+              player.remove('start', onStarted);
+              player.remove('external', onStarted);
+              player.remove('destroy', onDestroyed);
+            };
+            var fail = function fail(code) {
+              if (settled) return;
+              settled = true;
+              cleanup();
+              closeReplayActivity();
+              reject(code instanceof Error ? code : new Error(code));
+            };
+            var complete = function complete() {
+              if (settled) return;
+              settled = true;
+              cleanup();
+              closeReplayActivity();
+              resolve({
+                launched: true
+              });
+            };
+            var applyProgress = function applyProgress(data) {
+              if (!data || !samePlayback(data, selectedHash, savedEpisode.season, selectedEpisode)) return;
+              var timeline = data.timeline || {
+                hash: selectedHash
+              };
+              data.timeline = _objectSpread2(_objectSpread2({}, timeline), {}, {
+                hash: selectedHash || timelineHash(data)
+              }, selectedProgress);
+            };
+            function onCreate(event) {
+              applyProgress(event && event.data);
+            }
+            function onStarted(data) {
+              if (triggered && samePlayback(data, selectedHash, savedEpisode.season, selectedEpisode)) complete();
+            }
+            function onDestroyed() {
+              if (triggered) fail('resume-online-destroyed');
+            }
+            var tryNextSeason = function tryNextSeason() {
+              if (restored.hasSeasonIndex || !savedHash || candidateIndex + 1 >= candidates.length || !Lampa.Activity || typeof Lampa.Activity.replace !== 'function') return false;
+              candidateIndex++;
+              setSeasonIndex(Lampa, card, restored, candidates[candidateIndex]);
+              awaitingReplacement = true;
+              Lampa.Activity.replace();
+              rememberReplayActivity();
+              return true;
+            };
+            var inspect = function inspect() {
+              if (settled || triggered || typeof $ !== 'function') return;
+              var root = activityRoot(Lampa);
+              if (!root) return;
+              rememberReplayActivity();
+              var items = root.find('.online-prestige--full');
+              if (!items || !items.length || typeof items.each !== 'function') return;
+              var currentIndex = -1;
+              items.each(function (index, node) {
+                if (currentIndex >= 0) return;
+                var nodeHash = text$2($(node).find('.time-line').attr('data-hash'));
+                if (savedHash && nodeHash === savedHash) currentIndex = index;
+              });
+              if (currentIndex < 0 && !restored.hasSeasonIndex && savedHash) {
+                tryNextSeason();
+                return;
+              }
+              if (currentIndex < 0) {
+                var expected = String(number$1(savedEpisode.episode)).padStart(2, '0');
+                items.each(function (index, node) {
+                  if (currentIndex < 0 && episodeText(node) === expected) currentIndex = index;
+                });
+              }
+              if (currentIndex < 0) return;
+              var targetIndex = currentIndex;
+              if (completed && currentIndex + 1 < items.length) targetIndex = currentIndex + 1;
+              var targetNode = null;
+              items.each(function (index, node) {
+                if (index === targetIndex) targetNode = node;
+              });
+              var target = items.eq(targetIndex);
+              selectedHash = text$2(target.find('.time-line').attr('data-hash'));
+              if (!selectedHash) return;
+              if (completed) {
+                var parsed = number$1(targetNode && episodeText(targetNode));
+                selectedEpisode = parsed || selectedEpisode;
+                selectedProgress = {
+                  time: 0,
+                  percent: 0
+                };
+              }
+              if (Lampa.Timeline && typeof Lampa.Timeline.update === 'function') {
+                Lampa.Timeline.update(_objectSpread2({
+                  hash: selectedHash
+                }, selectedProgress));
+              }
+              triggered = true;
+              target.trigger('hover:enter');
+            };
+            player.follow('create', onCreate);
+            player.follow('start', onStarted);
+            player.follow('external', onStarted);
+            player.follow('destroy', onDestroyed);
+            interval = setInterval(inspect, pollMs);
+            timeout = setTimeout(function () {
+              return fail('resume-online-timeout');
+            }, timeoutMs);
+            Promise.resolve().then(function () {
+              if (typeof openMode !== 'function') return false;
+              return openMode('online');
+            }).then(function (opened) {
+              if (opened === false) {
+                fail('resume-online-action');
+                return;
+              }
+              rememberReplayActivity();
+              inspect();
+            })["catch"](fail);
+          });
+        }
+      };
+    }
+
     function createOnlineAdapter(Lampa) {
-      var globalObject = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : window;
+      var globalObject = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : typeof window !== 'undefined' ? window : {};
+      var _native = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : createNativeOnline(Lampa);
       return {
         resolve: function resolve(card, record) {
+          var _arguments = arguments;
           return _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee() {
-            var bridge, result;
+            var options, bridge, result;
             return _regenerator().w(function (_context) {
               while (1) switch (_context.n) {
                 case 0:
+                  options = _arguments.length > 2 && _arguments[2] !== undefined ? _arguments[2] : {};
                   bridge = globalObject.LampacOnlineResume;
                   if (!(!bridge || typeof bridge.resolve !== 'function')) {
                     _context.n = 1;
                     break;
                   }
-                  throw new Error('resume-online-bridge');
+                  return _context.a(2, _native.launch(card, record, options.openMode));
                 case 1:
                   _context.n = 2;
                   return bridge.resolve({
@@ -1179,6 +1585,7 @@
 
     var VIDEO_EXTENSIONS = ['asf', 'wmv', 'divx', 'avi', 'mp4', 'm4v', 'mov', '3gp', '3g2', 'mkv', 'trp', 'tp', 'mts', 'mpg', 'mpeg', 'dat', 'vob', 'rm', 'rmvb', 'm2ts', 'ts'];
     var SUBTITLE_EXTENSIONS = ['srt', 'vtt', 'ass', 'ssa'];
+    var DEFAULT_REQUEST_TIMEOUT_MS = 5000;
     var extension = function extension(path) {
       return String(path || '').split('.').pop().toLowerCase();
     };
@@ -1195,12 +1602,22 @@
         return executor(resolve, reject);
       });
     };
-    var text = function text(value) {
+    var text$1 = function text(value) {
       return typeof value === 'string' ? value.trim() : '';
     };
-    var magnet = function magnet(value) {
-      return text(value).indexOf('magnet:') === 0 ? text(value) : '';
+    var number = function number(value) {
+      return Number.isFinite(Number(value)) ? Number(value) : 0;
     };
+    var magnet$1 = function magnet(value) {
+      return text$1(value).indexOf('magnet:') === 0 ? text$1(value) : '';
+    };
+    function magnetFor() {
+      var recipe = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {};
+      var stored = magnet$1(recipe.magnet);
+      if (stored) return stored;
+      var hash = text$1(recipe.infohash).toUpperCase();
+      return /^(?:[A-F0-9]{40}|[A-Z2-7]{32})$/.test(hash) ? 'magnet:?xt=urn:btih:' + hash : '';
+    }
     function createViewedApi(Lampa) {
       var network;
       var request = function request(payload, success, fail) {
@@ -1238,30 +1655,157 @@
         }
       };
     }
-    function loadFiles(Lampa, recipe) {
-      return callbackPromise(function (resolve, reject) {
-        var complete = function complete(hash) {
-          return function (response) {
-            return resolve({
-              response: response,
-              hash: response.hash || hash
-            });
-          };
+    function hasFiles(response) {
+      return Boolean(response && (Array.isArray(response.file_stats) || Array.isArray(response.files)));
+    }
+    function requestFiles(Lampa, hash, waitMs) {
+      return new Promise(function (resolve) {
+        var settled = false;
+        var finish = function finish(value) {
+          if (settled) return;
+          settled = true;
+          clearTimeout(timer);
+          resolve(value);
         };
-        Lampa.Torserver.files(recipe.infohash, complete(recipe.infohash), function (error) {
-          if (!recipe.magnet) return reject(error);
+        var timer = setTimeout(function () {
+          return finish(null);
+        }, waitMs);
+        try {
+          Lampa.Torserver.files(hash, function (response) {
+            return finish(hasFiles(response) ? response : null);
+          }, function () {
+            return finish(null);
+          });
+        } catch (error) {
+          finish(null);
+        }
+      });
+    }
+    function addTorrent(Lampa, recipe, link, waitMs) {
+      return new Promise(function (resolve, reject) {
+        var settled = false;
+        var finish = function finish(error, value) {
+          if (settled) return;
+          settled = true;
+          clearTimeout(timer);
+          if (error) reject(error);else resolve(value);
+        };
+        var timer = setTimeout(function () {
+          return finish(new Error('resume-torrent-add-timeout'));
+        }, waitMs);
+        try {
           Lampa.Torserver.hash({
             title: recipe.torrent_title,
-            link: recipe.magnet,
+            link: link,
             poster: '',
             data: {
               lampa: true
             }
-          }, function (added) {
-            return Lampa.Torserver.files(added.hash, complete(added.hash), reject);
-          }, reject);
-        });
+          }, function (result) {
+            return finish(null, result || {});
+          }, function (error) {
+            return finish(error || new Error('resume-torrent-add'));
+          });
+        } catch (error) {
+          finish(error);
+        }
       });
+    }
+    var wait = function wait(milliseconds) {
+      return new Promise(function (resolve) {
+        return setTimeout(resolve, milliseconds);
+      });
+    };
+    function loadFiles(_x, _x2, _x3) {
+      return _loadFiles.apply(this, arguments);
+    }
+    function _loadFiles() {
+      _loadFiles = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee2(Lampa, recipe, options) {
+        var timeoutMs, pollMs, requestTimeoutMs, deadline, first, link, remainingForAdd, added, hash, remaining, response, afterRequest;
+        return _regenerator().w(function (_context2) {
+          while (1) switch (_context2.n) {
+            case 0:
+              timeoutMs = Math.max(1, number(options.timeoutMs) || 15000);
+              pollMs = Math.max(1, number(options.pollMs) || 250);
+              requestTimeoutMs = Math.max(1, number(options.requestTimeoutMs) || Math.min(DEFAULT_REQUEST_TIMEOUT_MS, timeoutMs));
+              deadline = Date.now() + timeoutMs;
+              _context2.n = 1;
+              return requestFiles(Lampa, recipe.infohash, Math.min(requestTimeoutMs, timeoutMs));
+            case 1:
+              first = _context2.v;
+              if (!first) {
+                _context2.n = 2;
+                break;
+              }
+              return _context2.a(2, {
+                response: first,
+                hash: first.hash || recipe.infohash
+              });
+            case 2:
+              link = magnetFor(recipe);
+              if (link) {
+                _context2.n = 3;
+                break;
+              }
+              throw new Error('resume-torrent-magnet');
+            case 3:
+              remainingForAdd = deadline - Date.now();
+              if (!(remainingForAdd <= 0)) {
+                _context2.n = 4;
+                break;
+              }
+              throw new Error('resume-torrent-timeout');
+            case 4:
+              _context2.n = 5;
+              return addTorrent(Lampa, recipe, link, remainingForAdd);
+            case 5:
+              added = _context2.v;
+              hash = text$1(added.hash) || text$1(recipe.infohash);
+              if (hash) {
+                _context2.n = 6;
+                break;
+              }
+              throw new Error('resume-torrent-hash');
+            case 6:
+              if (!(Date.now() < deadline)) {
+                _context2.n = 11;
+                break;
+              }
+              remaining = deadline - Date.now();
+              _context2.n = 7;
+              return requestFiles(Lampa, hash, Math.min(requestTimeoutMs, remaining));
+            case 7:
+              response = _context2.v;
+              if (!response) {
+                _context2.n = 8;
+                break;
+              }
+              return _context2.a(2, {
+                response: response,
+                hash: response.hash || hash,
+                magnet: link
+              });
+            case 8:
+              afterRequest = deadline - Date.now();
+              if (!(afterRequest <= 0)) {
+                _context2.n = 9;
+                break;
+              }
+              return _context2.a(3, 11);
+            case 9:
+              _context2.n = 10;
+              return wait(Math.min(pollMs, afterRequest));
+            case 10:
+              _context2.n = 6;
+              break;
+            case 11:
+              throw new Error('resume-torrent-timeout');
+            case 12:
+              return _context2.a(2);
+          }
+        }, _callee2);
+      }));
+      return _loadFiles.apply(this, arguments);
     }
     function buildTorrentSubtitles(Lampa, hash, file, allFiles) {
       var name = String(file.path || '').split(/[/\\]/).pop().split('.').slice(0, -1).join('.');
@@ -1286,10 +1830,10 @@
         mode: 'torrent',
         torrent: {
           infohash: hash,
-          magnet: magnet(recipe.magnet),
+          magnet: magnet$1(recipe.magnet),
           file_index: Number(file.id),
           file_path: String(file.path || ''),
-          torrent_title: text(recipe.torrent_title)
+          torrent_title: text$1(recipe.torrent_title)
         }
       };
     }
@@ -1325,21 +1869,25 @@
       });
     }
     function createTorrentAdapter(Lampa) {
+      var options = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {};
       var viewedApi = createViewedApi(Lampa);
       return {
         resolve: function resolve(card, record) {
           return _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee() {
-            var recipe, loaded, response, hash, allFiles, viewed, videos, playlist, item, _t;
+            var recipe, loaded, response, hash, effectiveRecipe, allFiles, viewed, videos, playlist, item, _t;
             return _regenerator().w(function (_context) {
               while (1) switch (_context.n) {
                 case 0:
                   recipe = record.torrent;
                   _context.n = 1;
-                  return loadFiles(Lampa, recipe);
+                  return loadFiles(Lampa, recipe, options);
                 case 1:
                   loaded = _context.v;
                   response = loaded.response;
                   hash = loaded.hash;
+                  effectiveRecipe = _objectSpread2(_objectSpread2({}, recipe), {}, {
+                    magnet: loaded.magnet || magnetFor(recipe)
+                  });
                   allFiles = (response.file_stats || response.files || []).slice().sort(function (left, right) {
                     return naturalPath(left.path).localeCompare(naturalPath(right.path));
                   });
@@ -1365,7 +1913,7 @@
                     return VIDEO_EXTENSIONS.indexOf(extension(file.path)) >= 0;
                   }));
                   playlist = videos.map(function (file) {
-                    return buildTorrentItem(Lampa, card, hash, file, allFiles, viewed || [], recipe, viewedApi);
+                    return buildTorrentItem(Lampa, card, hash, file, allFiles, viewed || [], effectiveRecipe, viewedApi);
                   }).sort(function (left, right) {
                     return Number(left.season) - Number(right.season) || Number(left.episode) - Number(right.episode) || naturalPath(left.path).localeCompare(naturalPath(right.path));
                   });
@@ -1410,11 +1958,63 @@
       };
     }
 
+    var text = function text(value) {
+      return typeof value === 'string' ? value.trim() : '';
+    };
+    var hashKey = function hashKey(value) {
+      return text(value).toUpperCase();
+    };
+    var magnet = function magnet(value) {
+      return /^magnet:/i.test(text(value)) ? text(value) : '';
+    };
+    function createTorrentContext(Lampa) {
+      var remembered = new Map();
+      var original = null;
+      var wrapped = null;
+      function remember(infohash) {
+        var input = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {};
+        var key = hashKey(infohash);
+        if (!key) return;
+        remembered.set(key, {
+          infohash: key,
+          magnet: magnet(input.link),
+          torrent_title: text(input.title)
+        });
+      }
+      return {
+        start: function start() {
+          if (wrapped || !Lampa.Torserver || typeof Lampa.Torserver.hash !== 'function') return this;
+          original = Lampa.Torserver.hash;
+          wrapped = function wrapped(input, success, fail) {
+            return original.call(this, input, function (result) {
+              remember(result && result.hash, input);
+              if (typeof success === 'function') success(result);
+            }, fail);
+          };
+          Lampa.Torserver.hash = wrapped;
+          return this;
+        },
+        stop: function stop() {
+          if (!wrapped) return this;
+          if (Lampa.Torserver && Lampa.Torserver.hash === wrapped) Lampa.Torserver.hash = original;
+          original = null;
+          wrapped = null;
+          return this;
+        },
+        find: function find(infohash) {
+          var found = remembered.get(hashKey(infohash));
+          return found ? _objectSpread2({}, found) : null;
+        }
+      };
+    }
+
     function createWatchResumeRuntime(Lampa) {
       var options = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {};
       var store = createRecipeStore(Lampa);
       var torrentTimecodes = createTorrentTimecodeWriter(Lampa);
+      var torrentContext = createTorrentContext(Lampa);
       var capture = createCapture(Lampa, store, {
+        findTorrentContext: torrentContext.find,
         writeTorrentTimecode: torrentTimecodes.write
       });
       var launcher = createPlayerLauncher(Lampa);
@@ -1440,7 +2040,10 @@
           if (started) return this;
           started = true;
           registerLanguage(Lampa);
-          if (canCapture) capture.start();
+          if (canCapture) {
+            torrentContext.start();
+            capture.start();
+          }
           button.start();
           Lampa.Listener.follow('lampac', onSyncImport);
           return this;
@@ -1448,7 +2051,10 @@
         stop: function stop() {
           if (!started) return this;
           started = false;
-          if (canCapture) capture.stop();
+          if (canCapture) {
+            capture.stop();
+            torrentContext.stop();
+          }
           button.stop();
           Lampa.Listener.remove('lampac', onSyncImport);
           return this;
@@ -1472,13 +2078,16 @@
       }
     }
 
+    exports.createNativeOnline = createNativeOnline;
     exports.createOnlineAdapter = createOnlineAdapter;
     exports.createPlayerLauncher = createPlayerLauncher;
     exports.createResumeButton = createResumeButton;
     exports.createResumeOrchestrator = createResumeOrchestrator;
     exports.createTorrentAdapter = createTorrentAdapter;
+    exports.createTorrentContext = createTorrentContext;
     exports.createTorrentTimecodeWriter = createTorrentTimecodeWriter;
     exports.createWatchResumeRuntime = createWatchResumeRuntime;
+    exports.magnetFor = magnetFor;
     exports.normalizePlaylist = normalizePlaylist;
     exports.openSameMode = openSameMode;
 
