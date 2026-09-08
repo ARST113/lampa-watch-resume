@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Lampa Watch Resume</title>
+  <style>
+    :root { color-scheme: dark; font-family: system-ui, sans-serif; }
+    body { margin: 0; background: #11131a; color: #f4f5f7; }
+    main { max-width: 760px; margin: 0 auto; padding: 64px 24px; }
+    h1 { font-size: clamp(2rem, 6vw, 4rem); margin: 0 0 16px; }
+    p { color: #b9bec9; font-size: 1.1rem; line-height: 1.6; }
+    .url { display: flex; gap: 12px; margin: 28px 0; flex-wrap: wrap; }
+    code { flex: 1; min-width: 260px; padding: 16px; background: #20232d; border-radius: 12px; overflow-wrap: anywhere; }
+    button, a { border: 0; border-radius: 12px; padding: 14px 18px; font: inherit; font-weight: 700; cursor: pointer; }
+    button { background: #fff; color: #11131a; }
+    a { display: inline-block; background: #5d65f2; color: #fff; text-decoration: none; }
+    ul { color: #d8dbe2; line-height: 1.8; padding-left: 22px; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Lampa Watch Resume</h1>
+    <p>Одна кнопка на карточке сериала продолжает последний online- или torrent-просмотр, заново строит актуальные ссылки и передаёт полный доступный плейлист.</p>
+    <div class="url">
+      <code id="plugin-url">https://arst113.github.io/lampa-watch-resume/watch_resume.js</code>
+      <button id="copy" type="button">Копировать</button>
+    </div>
+    <a href="watch_resume.js">Открыть файл плагина</a>
+    <ul>
+      <li>Внутренний плеер и Just Player+</li>
+      <li>Lampac Sync без сохранения готовых playback URL</li>
+      <li>Полный плейлист доступных серий или файлов раздачи</li>
+      <li>Поддержка TorrServer TrackTimecode</li>
+    </ul>
+  </main>
+  <script>
+    document.getElementById('copy').addEventListener('click', async function () {
+      await navigator.clipboard.writeText(document.getElementById('plugin-url').textContent);
+      this.textContent = 'Скопировано';
+    });
+  </script>
+</body>
+</html>
