@@ -34,6 +34,7 @@
     var imdb=String(p.imdb_id||c.imdb_id||c.imdb||'').trim();
     var tmdb=String(p.tmdb_id||c.id||'').trim();
     var mal=positiveInt(p.mal_id||p.malId||c.mal_id||c.malId||c.myanimelist_id);
+    if((mal===null||mal===0)&&(imdb||tmdb))mal=positiveInt(get('mal_'+(imdb||tmdb),null));
     var season=p.season,episode=p.episode;
     for(var i=0;i<pl.length;i++){var e=pl[i];if(e&&(e.url===p.url||(pl.length===1&&!p.url))){
       if(season==null)season=e.season!=null?e.season:e.s;
@@ -264,7 +265,7 @@
     return jobs;
   }
   function loadRemote(m,len) {
-    var key=fingerprint(m,len),obj=json(get('remote_'+key,null));
+    var key=fingerprint(m,len),box=json(get('remote_cache',{}))||{},obj=box[key];
     if(obj && obj.timestamp && Date.now()-obj.timestamp<86400000 && Array.isArray(obj.items))
       return Promise.resolve(obj.items);
     var jobs=remoteRequests(m,len);if(!jobs.length)return Promise.resolve([]);
@@ -272,7 +273,13 @@
       .then(function(a){
         var out=[],succeeded=false;
         a.forEach(function(x){if(x.ok)succeeded=true;if(Array.isArray(x.items))out=out.concat(x.items);});
-        if(succeeded)set('remote_'+key,{timestamp:Date.now(),items:out.slice(0,60)});
+        if(succeeded){
+          var cache=json(get('remote_cache',{}))||{};
+          cache[key]={timestamp:Date.now(),items:out.slice(0,60)};
+          var keys=Object.keys(cache).sort(function(a,b){return (cache[b].timestamp||0)-(cache[a].timestamp||0);});
+          keys.forEach(function(k,i){if(i>=75||Date.now()-(cache[k].timestamp||0)>604800000)delete cache[k];});
+          set('remote_cache',cache);
+        }
         return out;
       });
   }
@@ -368,6 +375,17 @@
       if(!current)return;var old=readManual(current.key),keep=old.filter(function(x){return x.type!==current.editType;});
       saveManual(current.key,keep);mergeCurrent();renderPanel();
     });
+    if(m && !m.movie && (m.imdb||m.tmdb)){
+      var malRow=line(p,'AniSkip · MyAnimeList ID: ');
+      var malInput=make('input');malInput.type='number';malInput.min='1';malInput.max='99999999';
+      malInput.value=m.mal||'';malInput.placeholder='MAL ID';malInput.style.cssText='max-width:135px;padding:6px;color:#fff;background:#222;border:1px solid #888;border-radius:6px';
+      malRow.appendChild(malInput);
+      panelButton(malRow,'Сохранить MAL ID',function(){
+        var id=positiveInt(malInput.value);
+        if(id===null||id<1||id>99999999)return notice('Укажите корректный числовой MyAnimeList ID');
+        set('mal_'+(m.imdb||m.tmdb),id);m.mal=id;refreshRemote(true);renderPanel();
+      });
+    }
     var playback=line(p);
     [0.75,1,1.25,1.5,2].forEach(function(n){panelButton(playback,n+'×',function(){
       if(v){v.playbackRate=n;notice('Скорость '+n+'×');}
@@ -445,7 +463,7 @@
       var remain=Math.max(0,(duration()-now)/(number(v.playbackRate)>0?v.playbackRate:1)),end=new Date(Date.now()+remain*1000);
       var text='Осталось '+fmt(remain)+' · До '+('0'+end.getHours()).slice(-2)+':'+('0'+end.getMinutes()).slice(-2);
       if(on('stats',false)){
-        text+='\n'+v.videoWidth+'×'+v.videoHeight+' · '+(v.playbackRate||1)+'×';
+        text+='\n'+(v.videoWidth&&v.videoHeight?v.videoWidth+'×'+v.videoHeight+' · ':'')+(v.playbackRate||1)+'×';
         try{if(v.buffered&&v.buffered.length){
           var en=v.buffered.end(v.buffered.length-1);text+=' · Буфер '+Math.max(0,Math.round(en-now))+' с';
         }}catch(e){}
@@ -560,7 +578,7 @@
     if(!current)return;
     var token=playerToken,ref=current,m=ref.meta,len=duration();
     ref.requestSerial=(ref.requestSerial||0)+1;var seq=ref.requestSerial;
-    if(force)set('remote_'+fingerprint(m,len),null);
+    if(force){var box=json(get('remote_cache',{}))||{};delete box[fingerprint(m,len)];set('remote_cache',box);}
     loadRemote(m,len).then(function(segments){
       if(token!==playerToken||current!==ref||ref.requestSerial!==seq)return;
       ref.remote=segments;mergeCurrent();log('Remote segments',segments.length);
@@ -673,5 +691,5 @@
   if(L&&L.Listener&&L.Listener.follow)L.Listener.follow('app',function(e){if(e&&e.type==='ready')init();});
   if(document.readyState==='complete'||document.readyState==='interactive')setTimeout(init,0);
   else document.addEventListener('DOMContentLoaded',init);
-  var attempts=0,loader=setInterval(function(){init();if(mounted||++attempts>=50)clearInterval(loader);},300);
+  var attempts=0,loader=setInterval(function(){init();if(mounted||++attempts>=240)clearInterval(loader);},300);
 })();
