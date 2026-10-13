@@ -33,6 +33,7 @@ function run(exportsOnly=true, options={}) {
     Activity:{active(){return {card:{name:'Example',id:22,imdb_id:'tt1234567'}};}},
     PlayerVideo:{video(){return video;},listener:{follow(k,f){handlers['v:'+k]=f;}}},
     Player:{listener:{follow(k,f){handlers[k]=f;}}},
+    Listener:{follow(k,f){handlers['app:'+k]=f;}},
     SettingsApi:{addComponent(x){settings.push(x);},addParam(x){settings.push(x);}},
     Noty:{show(){}}
   };
@@ -49,6 +50,7 @@ function run(exportsOnly=true, options={}) {
     XMLHttpRequest:XHR,setTimeout(){return 1;},clearTimeout(){},setInterval(){return 1;},clearInterval(){},
     Date,Math,isFinite,Number,Array,Object,JSON,parseFloat,parseInt,Promise,encodeURIComponent};
   vm.runInNewContext(src,context);
+  if(!exportsOnly && handlers['app:app'])handlers['app:app']({type:'ready'});
   return {api:window.__test,handlers,settings,store,video,children,window,document:fakeDoc};
 }
 function plain(x){return JSON.parse(JSON.stringify(x));}
