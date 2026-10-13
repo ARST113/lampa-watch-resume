@@ -1,48 +1,68 @@
-# ARX Player Tools for Lampa
+# ARX Player Tools 0.3.0 для Lampa
 
-**Version:** 0.1.0 (experimental). Independent JavaScript plugin for the **internal Lampa HTML5 player**; does not modify ARX TPlayer APK or the existing watch-resume plugin.
+Экспериментальный JS-плагин для внутреннего HTML5-видеоплеера Lampa. Не заменяет ARX TPlayer и не меняет встроенные видеодекодеры.
 
-## Installation
+## Установка
 
-Lampa → Settings → Extensions → Add plugin:
+Lampa → Настройки → Расширения → Добавить плагин:
 
 https://arst113.github.io/lampa-watch-resume/arx_player_tools.js
 
-Source: [arx_player_tools.js](arx_player_tools.js). New settings section: **ARX Player Tools**. Leave automatic skipping off initially.
+Код: [arx_player_tools.js](arx_player_tools.js). Настройки → ARX Player Tools. При просмотре кнопка **ARX** открывает панель управления.
 
-## Features implemented in 0.1.0
+## Что реализовано
 
-- Intro / recap / credits / next-episode preview / embedded ad segment support; individual toggles. Ads and previews off by default.
-- Public metadata APIs: [SkipDB](https://skipdb.tv/docs), [IntroDB](https://introdb.app/docs/api), [TheIntroDB](https://theintrodb.org/docs). Missing and blocked requests fail open.
-- Prefer skip segments provided by Lampa's launching app; playlist segments should have duration_ms in milliseconds, with segment start/end in **seconds**.
-- Per-episode source consensus: two matching independent sources, or high-confidence SkipDB data, may be eligible for optional automatic skip. Uncertain matches are manual only.
-- Undo button (nine seconds), opt-in red TV remote key, optional remaining-time overlay.
-- Pause timer (15–90 minutes), plus pause on ended; interaction with Lampa auto-next still requires device validation.
-- Per-episode 24-hour cache via Lampa.Storage. Does not overwrite file_view or sync_view playback history.
-- Optional OpenSubtitles RU loading from the unmodified upstream https://m3dfatboi.github.io/lampa-opensubtitles-ru/opensubtitles_ru.js. Default OFF. Avoid duplicate injection if already installed; change this setting before restarting Lampa.
+### Пропуск сегментов
+- SkipDB (IMDb): заставки, рекапы, титры, анонсы; проверка confidence, match и продолжительности.
+- IntroDB (IMDb): получение сегментов для сериалов и фильмов.
+- TheIntroDB (TMDB): заставки, рекапы и титры по сезону и серии.
+- AniSkip (MyAnimeList): опенинги, эндинги и рекапы аниме; проверка продолжительности версии.
+- IntroHater: экспериментальный дополнительный источник, выключен по умолчанию.
+- Обработка сегментов, переданных запускающим источником Lampa, с приоритетом над удалёнными базами.
+- Согласование временных интервалов нескольких независимых баз; один слабый результат требует ручного пропуска.
+- Ручное создание границ заставок/рекапов/титров/анонсов/рекламы/послетитровых сцен и удаление своих отметок.
+- Автоматическая перемотка только для подтверждённых сегментов, отключена по умолчанию; запрещена для рекламы, превью, сцен после титров.
+- Кнопка пропуска с временем до конца сегмента, отмена перемотки в течение 10 секунд, опциональная красная кнопка пульта.
+- Цветные отметки на прогресс-баре, когда разметка плеера позволяет это без вмешательства в штатное управление.
+- Подсказки по названиям HTML5-глав и по длинным паузам между текстовыми субтитрами: только ручной пропуск, эвристика по субтитрам выключена по умолчанию.
 
-## Limitations
+### Функции воспроизведения
+- Всплывающее меню ARX: +/- перемотка, скорость 0.75×–2×, управление автопропуском, таймеры, локальные отметки.
+- Таймер остановки 15, 30, 45, 60, 90 минут при старте; дополнительные кнопки +15/+30 минут.
+- Опциональное плавное снижение громкости в течение последних 30 секунд с восстановлением оригинального уровня.
+- Вывод оставшегося времени, предполагаемого времени окончания, скорости, разрешения и буфера.
+- Максимум 75 локально кешированных записей, TTL 24 часа, с разделением серий и длительностей.
+- Не изменяет историю file_view, sync_view, TorrServer или плагин watch_resume.js.
 
-1. Skip UI and seek require **Lampa's internal HTML5 player**. External ARX TPlayer / Just+ / mpv / VLC have independent video engines: ordinary JavaScript cannot seek inside their processes.
-2. Streaming sources must expose a seekable video.currentTime. DRM and unseekable streams may not support skip.
-3. Different cuts/editions can offset timestamps. Verify playback before enabling auto-skip. Large mismatches in duration for playlist-supplied segments are rejected.
-4. APIs can enforce CORS, change response schema or availability. Live Lampa / Android TV validation is pending.
-5. Smart TV browsers differ in remote focus support. Red remote key mode is an alternative to the on-screen button.
-6. This plugin does not decode embedded MKV subtitle tracks. OpenSubtitles RU handles external subtitle lookup. [Improved Subtitles](https://github.com/adambenhassen/lampa-improved-subtitles) provides a separate dual-subtitle solution for some browsers and file types. Running multiple subtitle-control plugins concurrently may conflict.
-7. Native Dolby Vision, audio passthrough, AC3/EAC3/DTS decode, 4K decoders, picture render controls, HDMI refresh matching and hardware fallbacks **cannot be added by plain Lampa JavaScript**.
+### Субтитры
+- Можно включить необязательную загрузку [OpenSubtitles RU](https://github.com/m3dfatboi/lampa-opensubtitles-ru) при запуске Lampa; если плагин уже указан в списке расширений, второй экземпляр загрузчиком не создаётся.
+- Экспериментальная вторая строка субтитров с собственным языком, смещением времени и положением. Работает исключительно с HTML5 TextTrack, которые доступны видеодвижку; встроенные в MKV дорожки вне HTML5 API не появятся от установки JS-плагина.
+- Поддерживаемые настройки второго языка: ru, en, es, de, fr; смещение -5/-2/-1/0/+1/+2/+5 секунд.
 
-## Data and privacy
+## Ручная установка границ
 
-The plugin sends public IMDb / TMDB identifiers, episode numbers and optionally video duration to providers. It does **not** send private torrent stream URLs, TorrServer addresses, credentials or viewing history. OpenSubtitles RU is loaded from a third-party server only when explicitly enabled.
+1. При просмотре нажать ARX и выбрать тип сегмента.
+2. На реальном начале нажать **Отметить начало**.
+3. На конце нажать **Сохранить конец**.
+4. Метка сохранится локально для этого фильма или серии, с учётом длительности файла; в случае существенного расхождения с онлайн-базами ручное исправление останется приоритетным.
+5. Для удаления нажать **Удалить свои метки этого типа**.
 
-SkipDB API/data are subject to its ODbL 1.0 + reciprocity terms; responses here are transient local cached playback metadata. Respect the separate terms of other providers.
+### AniSkip ID
 
-## Automated testing
+При наличии MAL ID в метаданных Lampa он используется автоматически. В остальных случаях в панели ARX для сериала предусмотрено поле MyAnimeList ID: введённое числовое значение привязывается к IMDb/TMDB идентификатору и сохраняется для последующих серий.
 
-Workflow: [.github/workflows/arx-player-tools.yml](.github/workflows/arx-player-tools.yml). Tests: [tests/arx_player_tools.test.js](tests/arx_player_tools.test.js). Automated syntax tests and mock payload/unit logic cannot establish real TV compatibility.
+## Ограничения и безопасность
 
-**Device acceptance:** test intro/recap/end credits against a known TV episode; verify undo and red remote key; navigate next episode to check cache isolation; verify no crash with disabled internet and with an external player; check subtitle duplication if the optional upstream loader is enabled.
+Автопропуск по умолчанию выключен: сперва проверьте 2–3 серии одной версии релиза. Неоднозначные или несовпадающие по длительности сегменты не подходят для автоматического пропуска. Указанные в главах или выведенные из пауз субтитров интервалы только предлагаются для ручного подтверждения.
 
-## Next iterations
+Только внутренняя Lampa управляет HTML5 video.currentTime. Внешний ARX TPlayer, Just+, VLC, mpv, нативные Android-субтитры, аппаратный HDMI passthrough, Dolby Vision и аппаратное декодирование обычным JS расширением не управляются. CORS, отключённые внешние API, отсутствие диапазона seekable, старые WebView и TV-пульты могут ограничивать функции. Если включён сторонний lampa-auto-skip, собственный механизм пропуска ARX отключается.
 
-Extend to the remaining Just+ data sources, draw verified segments on the player timeline, add manual correction of timestamps, chapters and subtitle-derived suggestions, enhance timer UI, integrate subtitle priority and dual-track presentation where supported, and test Android TV, WebOS and Tizen independently.
+По сети передаются только публичные IMDb/TMDB/MAL ID, номер серии и продолжительность. Пароли, TorrServer URL, торрент-хеши, URL воспроизведения и историю просмотра плагин не передаёт внешним базам. Уважайте лицензии сервисов, включая ODbL и условия SkipDB.
+
+## Проверки
+
+- [GitHub Actions](.github/workflows/arx-player-tools.yml) — синтаксис JS и автоматические модульные тесты.
+- [Исходники тестов](tests/arx_player_tools.test.js) — API, идентификаторы, типы сегментов, локальные корректировки, безопасность перемоток, создание настроек.
+- Ручная приёмка на Android TV пока не выполнена: проверить кнопку/пульт, смену серии, таймер, скорость, сохранение сегментов, субтитры и работу при потере сети.
+
+При любых несовпадениях временных меток оставляйте автопропуск выключенным.
