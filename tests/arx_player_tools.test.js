@@ -4,7 +4,7 @@ const fs=require('node:fs'),path=require('node:path'),vm=require('node:vm');
 const {test}=require('node:test');
 function run(exportsOnly=true, options={}) {
   let src=fs.readFileSync(path.join(__dirname,'..','arx_player_tools.js'),'utf8');
-  if(exportsOnly) src=src.replace(/\}\)\(\);\s*$/,"window.__test={metadata,mapType,clock,put,parseSkipDB,parseIntroDB,parseTheIntroDB,parseAniSkip,parseIntroHater,fromLaunch,combine,fingerprint,appendManual,readManual,remoteRequests,playerStart,playerVideo,tick};})();");
+  if(exportsOnly) src=src.replace(/\}\)\(\);\s*$/,"window.__test={metadata,mapType,clock,put,parseSkipDB,parseIntroDB,parseTheIntroDB,parseAniSkip,parseIntroHater,fromLaunch,combine,fingerprint,appendManual,readManual,readChapters,readSubtitleSuggestions,remoteRequests,playerStart,playerVideo,tick};})();");
   const handlers={},store={},settings=[],children=[];
   const video={
     duration:2820,currentTime:0,paused:false,volume:1,playbackRate:1,videoWidth:1920,videoHeight:1080,
@@ -145,7 +145,7 @@ test('No external URL sent to providers, only IDs and duration',()=>{
   assert.equal(req.length,0);
 });
 test('Initialize and register internal player listeners on ready environment',()=>{
-  let a=run(false);assert.equal(a.settings.length,24);
+  let a=run(false);assert.equal(a.settings.length,25);
   assert.ok(a.handlers.start);assert.ok(a.handlers.ready);assert.ok(a.handlers.destroy);
   assert.ok(a.children.some(x=>x.className==='arx-tools-quick'));
 });
@@ -153,4 +153,23 @@ test('Registering playback does not write to progress storage keys',()=>{
   let a=run(false);
   a.handlers.start({url:'https://example.org/movie.mkv',season:1,episode:1,card:{id:22,imdb_id:'tt1234567'}});
   assert.equal(Object.keys(a.store).some(k=>/file_view|sync_view|torrents_view/.test(k)),false);
+});
+
+test('Chapter cue named opening creates manual-only suggestion',()=>{
+  const track={kind:'chapters',cues:[{startTime:31,endTime:88,text:'Opening Theme'}]};
+  const result=plain(f.readChapters({textTracks:[track]}));
+  assert.equal(result.length,1);assert.equal(result[0].type,'intro');
+  assert.equal(result[0].unsafe,true);
+});
+test('Subtitle gap hints never become trusted auto-skip',()=>{
+  const cues=Array.from({length:10},(_,i)=>({startTime:i===0?60:i*100,endTime:i===0?70:i*100+25}));
+  const result=plain(f.readSubtitleSuggestions({textTracks:[{kind:'subtitles',cues}]},2700));
+  assert.ok(result.length>0);
+  assert.equal(result[0].unsafe,true);
+});
+test('Manual segment overrides even a far-away unreliable database match',()=>{
+  let a=plain(f.combine([],[{type:'intro',start:15,end:50,source:'SkipDB',unsafe:false,quality:0.99}],
+    [{type:'intro',start:180,end:240,source:'Manual',unsafe:false,quality:1}],2820));
+  assert.equal(a.length,1);
+  assert.equal(a[0].start,180);
 });
