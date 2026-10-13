@@ -173,3 +173,46 @@ test('Manual segment overrides even a far-away unreliable database match',()=>{
   assert.equal(a.length,1);
   assert.equal(a[0].start,180);
 });
+
+test('Manual skip control seeks to segment end and undo restores original timestamp',()=>{
+  const a=run(false);
+  a.handlers.start({url:'https://example.com/S01E01.mkv',season:1,episode:1,
+    card:{id:22,imdb_id:'tt1234567'},segments:{skip:[{start:60,end:95}]}});
+  a.video.currentTime=67;
+  a.video.events.timeupdate({type:'timeupdate'});
+  const skip=a.children.find(x=>x.className==='arx-tools-skip');
+  const undo=a.children.find(x=>x.className==='arx-tools-undo');
+  assert.equal(skip.style.display,'block');
+  skip.click();
+  assert.equal(a.video.currentTime,95);
+  assert.equal(undo.style.display,'block');
+  undo.click();
+  assert.equal(a.video.currentTime,67);
+});
+test('Automatic skip remains off by default',()=>{
+  const a=run(false);
+  a.handlers.start({url:'https://example.com/S01E01.mkv',season:1,episode:1,
+    card:{id:22,imdb_id:'tt1234567'},segments:{skip:[{start:60,end:95}]}});
+  a.video.currentTime=67;
+  a.video.events.timeupdate({type:'timeupdate'});
+  assert.equal(a.video.currentTime,67);
+});
+test('Autoskipping trusted source works when user opts in',()=>{
+  const a=run(false);
+  a.window.Lampa.Storage.set('arx_tools_auto',true);
+  a.handlers.start({url:'https://example.com/S01E01.mkv',season:1,episode:1,
+    card:{id:22,imdb_id:'tt1234567'},segments:{skip:[{start:60,end:95}]}});
+  a.video.currentTime=67;
+  a.video.events.timeupdate({type:'timeupdate'});
+  assert.equal(a.video.currentTime,95);
+});
+test('Autoskipping does not attempt to seek outside available media range',()=>{
+  const a=run(false);
+  a.window.Lampa.Storage.set('arx_tools_auto',true);
+  a.video.seekable={length:1,start(){return 0;},end(){return 30;}};
+  a.handlers.start({url:'https://example.com/S01E01.mkv',season:1,episode:1,
+    card:{id:22,imdb_id:'tt1234567'},segments:{skip:[{start:60,end:95}]}});
+  a.video.currentTime=67;
+  a.video.events.timeupdate({type:'timeupdate'});
+  assert.equal(a.video.currentTime,67);
+});
