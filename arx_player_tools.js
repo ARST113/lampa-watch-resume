@@ -127,6 +127,40 @@
         x.end_sec!=null?x.end_sec:x.end,'IntroHater',0.5,{unsafe:true});
     });return out;
   }
+  function readChapters(v) {
+    var out=[], tracks=v&&v.textTracks;
+    if(!tracks)return out;
+    for(var i=0;i<tracks.length;i++){
+      var tr=tracks[i];if(!tr||tr.kind!=='chapters'||!tr.cues)continue;
+      for(var j=0;j<tr.cues.length&&j<100;j++){
+        var c=tr.cues[j],name=String(c.text||'').toLowerCase().replace(/<[^>]*>/g,'').trim(),type=null;
+        if(/(intro|opening|опенинг|заставк)/i.test(name))type='intro';
+        else if(/(previously|recap|ранее|предыдущих сер)/i.test(name))type='recap';
+        else if(/(credits|ending|титр|эндинг)/i.test(name))type='credits';
+        else if(/(preview|next episode|анонс)/i.test(name))type='preview';
+        if(type)put(out,type,c.startTime,c.endTime,'Chapters',0.55,{unsafe:true});
+      }
+    }
+    return out;
+  }
+  function readSubtitleSuggestions(v,len) {
+    var out=[],tracks=v&&v.textTracks;
+    if(!tracks||len<600)return out;
+    for(var i=0;i<tracks.length;i++){
+      var tr=tracks[i];if(!tr||!tr.cues||tr.cues.length<8||tr.kind==='chapters')continue;
+      var cues=tr.cues,first=number(cues[0].startTime),candidate=null,best=0;
+      // Subtitle gaps can reflect silence, adverts or action scenes. NEVER auto-skip these hints.
+      if(first>=40&&first<=160)candidate={start:0,end:first};
+      for(var j=0;j<cues.length-1&&j<200;j++){
+        var end=number(cues[j].endTime),start=number(cues[j+1].startTime);
+        if(end>400)break;
+        var gap=start-end;
+        if(gap>=50&&gap<=150&&gap>best){candidate={start:end,end:start};best=gap;}
+      }
+      if(candidate)put(out,'intro',candidate.start,candidate.end,'Subtitles gap',0.1,{unsafe:true});
+      break;
+    }return out;
+  }
   function fromLaunch(p,len) {
     p=p||{};var source=p.segments,pl=Array.isArray(p.playlist)?p.playlist:[];
     if(!source)for(var i=0;i<pl.length;i++)if(pl[i]&&pl[i].url===p.url){source=pl[i].segments;break;}
@@ -150,7 +184,9 @@
   }
   function combine(injected,remote,manual,len) {
     var list=[], groups=[], result=[];
+    var corrected=(manual||[]).map(function(x){return x.type;});
     (injected||[]).concat(remote||[],manual||[]).forEach(function(x){
+      if(x.source!=='Manual' && corrected.indexOf(x.type)>=0 && x.type!=='ad')return;
       if(!x||TYPES.indexOf(x.type)<0||!isFinite(x.start)||!isFinite(x.end))return;
       if(len>0&&(x.start>len-2||x.end>len+1))return;
       list.push(x);
@@ -336,6 +372,12 @@
     [0.75,1,1.25,1.5,2].forEach(function(n){panelButton(playback,n+'×',function(){
       if(v){v.playbackRate=n;notice('Скорость '+n+'×');}
     });});
+    var behavior=line(p);
+    panelButton(behavior,on('auto',false)?'Автопропуск: вкл':'Автопропуск: выкл',function(){set('auto',!on('auto',false));renderPanel();});
+    panelButton(behavior,on('dualsubs',false)?'Вторые субтитры: вкл':'Вторые субтитры: выкл',function(){
+      var next=!on('dualsubs',false);set('dualsubs',next);
+      if(!next)restoreTrack();else pickSecondary();renderPanel();
+    });
     var extra=line(p);
     panelButton(extra,'Таймер +15 мин',function(){scheduleSleep(15,true);});
     panelButton(extra,'Таймер +30 мин',function(){scheduleSleep(30,true);});
@@ -380,7 +422,7 @@
     if(attachedVideo!==v)bindVideo();
     mountControls();
     var now=number(v.currentTime);
-    if(isFinite(now)&&on('skip',true)&&!window.__skipIntroLoaded&&on('skip_ui',true)){
+    if(isFinite(now)&&on('skip',true)&&!window.__skipIntroLoaded){
       var found=null;
       current.segments.some(function(s){
         if(!on('type_'+s.type,s.type!=='preview'&&s.type!=='ad'&&s.type!=='postcredits'))return false;
@@ -395,7 +437,7 @@
           current.auto[key]=true;current.hover=found;skipNow();
         }else if(!current.auto[key]){
           control.skip.textContent='Пропустить: '+NAMES[found.type]+' ('+fmt(found.end-now)+')'+(found.trusted?'':' · проверить');
-          control.skip.style.display='block';current.hover=found;
+          control.skip.style.display=on('skip_ui',true)?'block':'none';current.hover=found;
         }
       }else hideSkip();
     }else hideSkip();
@@ -504,12 +546,12 @@
       },1000);
     }
     sleepId=setTimeout(function(){
-      sleepId=null;scheduledEnd=0;clearFade(false);
-      if(token!==playerToken)return;
+      sleepId=null;scheduledEnd=0;
+      if(token!==playerToken){clearFade(true);return;}
       var v=playerVideo();if(v){try{v.pause();}catch(e){}}
-      notice('ARX: таймер сна — пауза');
-      // Restore volume so the next playback is not silent.
+      // Keep user's original volume before the next playback.
       clearFade(true);
+      notice('ARX: таймер сна — пауза');
     },ms);
     if(manual)notice('Таймер: '+minutes+' минут');
   }
@@ -517,9 +559,10 @@
   function refreshRemote(force){
     if(!current)return;
     var token=playerToken,ref=current,m=ref.meta,len=duration();
+    ref.requestSerial=(ref.requestSerial||0)+1;var seq=ref.requestSerial;
     if(force)set('remote_'+fingerprint(m,len),null);
     loadRemote(m,len).then(function(segments){
-      if(token!==playerToken||current!==ref)return;
+      if(token!==playerToken||current!==ref||ref.requestSerial!==seq)return;
       ref.remote=segments;mergeCurrent();log('Remote segments',segments.length);
     }).catch(function(e){log('Remote unavailable',String(e));});
   }
@@ -528,7 +571,9 @@
     var vlen=duration();
     current.key=fingerprint(current.meta,vlen);
     current.injected=fromLaunch(current.data,vlen);
-    current.segments=combine(current.injected,current.remote,readManual(current.key),vlen);
+    var fallback=readChapters(playerVideo());
+    if(on('sub_suggestions',false))fallback=fallback.concat(readSubtitleSuggestions(playerVideo(),vlen));
+    current.segments=combine(current.injected,current.remote.concat(fallback),readManual(current.key),vlen);
     current.markerFingerprint='';tick();
   }
   function clearEpisode(){
@@ -589,6 +634,7 @@
     setupItem('type_ad','trigger','Пропуск рекламы',false);
     setupItem('type_postcredits','trigger','Пропуск сцен после титров (осторожно)',false);
     setupItem('introhater','trigger','IntroHater (экспериментальный источник)',false);
+    setupItem('sub_suggestions','trigger','Подсказки по паузам в субтитрах (только ручной пропуск)',false);
     setupItem('quick','trigger','Показывать кнопку ARX с дополнительными функциями',true);
     setupItem('red_key','trigger','Красная кнопка пульта: пропустить',false);
     setupItem('info','trigger','Оставшееся время и время окончания',false);
