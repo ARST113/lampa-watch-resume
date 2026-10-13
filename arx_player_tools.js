@@ -246,7 +246,7 @@
   }
   function format(sec){sec=Math.max(0,Math.round(sec));return Math.floor(sec/60)+':'+('0'+sec%60).slice(-2);}
   function videoTick(){
-    var a=active, v=video();if(!a||!v||!enabled('skip',true)){hide();return;}
+    var a=active, v=video();if(!a||!v||!enabled('skip',true)||window.__skipIntroLoaded){hide();return;}
     var t=number(v.currentTime);if(!isFinite(t))return;
     if(!button)controls();
     var hit=null;
@@ -294,7 +294,7 @@
     var serial=count, m=metadata(p), injected=streamPayload(p);
     active={id:id,meta:m,payload:p,segments:bestSegments(injected,[],currentDuration()),shownKey:'',current:null,skipped:null,autoDone:''};
     bindVideo();sleep();videoTick();
-    if(!enabled('skip',true))return;
+    if(!enabled('skip',true)||window.__skipIntroLoaded)return;
     loadRemote(m).then(function(remote){
       if(serial!==count||!active)return;
       active.segments=bestSegments(injected,remote,currentDuration());videoTick();
@@ -344,6 +344,7 @@
     L=window.Lampa;
     if(started||!L||!L.Player||!L.Player.listener||!L.SettingsApi)return;
     started=true;initSettings();controls();loadSubtitles();
+    if(window.__skipIntroLoaded)notify('ARX: другой плагин пропуска заставок уже активен; пропуск ARX отключён');
     L.Player.listener.follow('start',playerStart);
     L.Player.listener.follow('ready',function(d){if(!active)playerStart(d);bindVideo();videoTick();});
     L.Player.listener.follow('destroy',cleanup);
