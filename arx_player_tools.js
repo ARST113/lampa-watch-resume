@@ -180,7 +180,7 @@
     TYPES.forEach(function(t){
       var values=byType[t];
       var primary=values.filter(function(s){return s.source==='launch';})[0];
-      if(primary){out.push(Object.assign({},primary,{trusted:true}));return;}
+      if(primary){out.push({type:primary.type,start:primary.start,end:primary.end,source:primary.source,trusted:true});return;}
       // Group independent sources with nearby boundaries, retaining source diversity.
       var clusters=[];
       values.forEach(function(s){
@@ -341,6 +341,7 @@
     setting('subs','trigger','Загружать OpenSubtitles RU при старте Lampa (если отдельно не установлен)',null,false);
   }
   function init(){
+    L=window.Lampa;
     if(started||!L||!L.Player||!L.Player.listener||!L.SettingsApi)return;
     started=true;initSettings();controls();loadSubtitles();
     L.Player.listener.follow('start',playerStart);
