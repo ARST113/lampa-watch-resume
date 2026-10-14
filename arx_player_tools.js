@@ -1,4 +1,4 @@
-/* ARX Player Tools 0.3.1 — Lampa internal HTML5 player
+/* ARX Player Tools 0.3.2 — Lampa internal HTML5 player
  * Public metadata only; no torrent URLs, credentials or watch history transmitted.
  * Supports skip services, episode-specific corrections, remote navigation,
  * HTML5 text tracks, chapter cues, sleep timer and playback information.
@@ -7,7 +7,7 @@
   'use strict';
   if (window.__ARX_PLAYER_TOOLS__) return;
   window.__ARX_PLAYER_TOOLS__ = true;
-  var L = window.Lampa, VERSION = '0.3.1', NS = 'arx_tools_';
+  var L = window.Lampa, VERSION = '0.3.2', NS = 'arx_tools_';
   var SUBS_URL = 'https://m3dfatboi.github.io/lampa-opensubtitles-ru/opensubtitles_ru.js';
   var TYPES = ['intro','recap','credits','preview','ad','postcredits'];
   var NAMES = {intro:'Заставка',recap:'Рекап',credits:'Титры',preview:'Анонс',ad:'Реклама',postcredits:'Сцена после титров'};
@@ -361,29 +361,26 @@
   function css() {
     if(styleReady || document.getElementById('arx-tools-style')){styleReady=true;return;}
     var e=make('style');e.id='arx-tools-style';
-    e.textContent='.arx-tools-panel-entry{display:inline-flex;padding:8px 16px;min-height:36px;border:1px solid #d4dae2;border-radius:8px;background:#25313d;color:white}.arx-tools-panel-entry.focus,.arx-tools-panel-entry:focus,.arx-tools-panel button.focus,.arx-tools-skip.focus{outline:3px solid white}.arx-tools-quick,.arx-tools-skip,.arx-tools-undo,.arx-tools-panel button{background:rgba(16,24,32,.93);color:#fff;border:1px solid #ffffff55;border-radius:10px;padding:9px 13px;font:inherit;cursor:pointer}.arx-tools-quick{position:absolute;right:2%;bottom:11%;z-index:8503;font-size:.86em}.arx-tools-skip{position:absolute;right:2%;bottom:21%;z-index:8503}.arx-tools-undo{position:absolute;right:2%;bottom:32%;z-index:8503}.arx-tools-quick:focus,.arx-tools-skip:focus,.arx-tools-undo:focus,.arx-tools-panel button:focus{outline:3px solid #fff}.arx-tools-panel{position:absolute;right:2%;bottom:20%;max-height:65%;width:min(560px,94%);box-sizing:border-box;overflow:auto;background:rgba(15,20,29,.96);color:#fff;padding:15px;border-radius:12px;z-index:8510;box-shadow:0 4px 20px #000a}.arx-tools-panel-title{font-weight:bold;font-size:1.1em;margin-bottom:8px}.arx-tools-panel-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}.arx-tools-panel button{font-size:.9em}.arx-tools-info{position:absolute;right:2%;top:6%;color:#fff;background:#000a;padding:7px 12px;border-radius:8px;font-size:.80em;z-index:8501;pointer-events:none;white-space:pre-line}.arx-tools-dual{position:absolute;bottom:8%;left:5%;width:90%;z-index:8502;color:#f5e2a4;text-align:center;font-size:1.05em;text-shadow:1px 2px 4px #000,0 0 3px #000;pointer-events:none}.arx-tools-markers{position:absolute;inset:0;pointer-events:none;z-index:5}.arx-tools-marker{position:absolute;top:0;bottom:0;width:3px;opacity:.8;background:#e4d788;pointer-events:none}.arx-tools-marker[data-type="credits"]{background:#67c0e5}.arx-tools-marker[data-type="recap"]{background:#d9a0e8}.arx-tools-marker[data-type="ad"]{background:#df8888}.arx-tools-legend{font-size:.78em;opacity:.84;margin:4px 0}';
+    e.textContent='.arx-tools-quick{display:none!important}.arx-tools-panel-entry{display:inline-flex;padding:8px 16px;min-height:36px;border:1px solid #d4dae2;border-radius:8px;background:#25313d;color:white}.arx-tools-panel-entry.focus,.arx-tools-panel-entry:focus,.arx-tools-panel button.focus,.arx-tools-skip.focus{outline:3px solid white}.arx-tools-quick,.arx-tools-skip,.arx-tools-undo,.arx-tools-panel button{background:rgba(16,24,32,.93);color:#fff;border:1px solid #ffffff55;border-radius:10px;padding:9px 13px;font:inherit;cursor:pointer}.arx-tools-quick{position:absolute;right:2%;bottom:11%;z-index:8503;font-size:.86em}.arx-tools-skip{position:absolute;right:2%;bottom:21%;z-index:8503}.arx-tools-undo{position:absolute;right:2%;bottom:32%;z-index:8503}.arx-tools-quick:focus,.arx-tools-skip:focus,.arx-tools-undo:focus,.arx-tools-panel button:focus{outline:3px solid #fff}.arx-tools-panel{position:absolute;right:2%;bottom:20%;max-height:65%;width:min(560px,94%);box-sizing:border-box;overflow:auto;background:rgba(15,20,29,.96);color:#fff;padding:15px;border-radius:12px;z-index:8510;box-shadow:0 4px 20px #000a}.arx-tools-panel-title{font-weight:bold;font-size:1.1em;margin-bottom:8px}.arx-tools-panel-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}.arx-tools-panel button{font-size:.9em}.arx-tools-info{position:absolute;right:2%;top:6%;color:#fff;background:#000a;padding:7px 12px;border-radius:8px;font-size:.80em;z-index:8501;pointer-events:none;white-space:pre-line}.arx-tools-dual{position:absolute;bottom:8%;left:5%;width:90%;z-index:8502;color:#f5e2a4;text-align:center;font-size:1.05em;text-shadow:1px 2px 4px #000,0 0 3px #000;pointer-events:none}.arx-tools-markers{position:absolute;inset:0;pointer-events:none;z-index:5}.arx-tools-marker{position:absolute;top:0;bottom:0;width:3px;opacity:.8;background:#e4d788;pointer-events:none}.arx-tools-marker[data-type="credits"]{background:#67c0e5}.arx-tools-marker[data-type="recap"]{background:#d9a0e8}.arx-tools-marker[data-type="ad"]{background:#df8888}.arx-tools-legend{font-size:.78em;opacity:.84;margin:4px 0}';
     document.head.appendChild(e);styleReady=true;
   }
   function placeRoot(){return document.querySelector('.player')||document.body;}
   function controls() {
     css();
-    if(control.quick)return;
-    control.quick=make('button','arx-tools-quick','ARX');control.quick.type='button';
+    if(control.panel)return;
     control.skip=make('button','arx-tools-skip selector');control.skip.type='button';control.skip.style.display='none';
     control.undo=make('button','arx-tools-undo selector','Отменить перемотку');control.undo.type='button';control.undo.style.display='none';
     control.info=make('div','arx-tools-info');control.info.style.display='none';
     control.dual=make('div','arx-tools-dual');control.dual.style.display='none';
     control.panel=make('div','arx-tools-panel');control.panel.style.display='none';
-    tvAction(control.quick,togglePanel);
     tvAction(control.skip,skipNow);tvAction(control.undo,undo);
-    ['quick','skip','undo','info','dual','panel'].forEach(function(k){placeRoot().appendChild(control[k]);});
+    ['skip','undo','info','dual','panel'].forEach(function(k){placeRoot().appendChild(control[k]);});
   }
   function mountControls() {
-    if(!control.quick)return;var root=placeRoot();
-    ['quick','skip','undo','info','dual','panel'].forEach(function(k){
+    if(!control.panel)return;var root=placeRoot();
+    ['skip','undo','info','dual','panel'].forEach(function(k){
       if(control[k]&&control[k].parentNode!==root)root.appendChild(control[k]);
     });
-    control.quick.style.display=on('quick',true)?'block':'none';
     tvPanelEntry();
   }
   function clearChildren(el) {while(el&&el.firstChild)el.removeChild(el.firstChild);}
@@ -686,7 +683,6 @@
     if(current && current.markerNode && current.markerNode.parentNode)current.markerNode.parentNode.removeChild(current.markerNode);
     current=null;
     if(control.info)control.info.style.display='none';
-    if(control.quick)control.quick.style.display='none';
     if(control.panelEntry)control.panelEntry.style.display='none';
     if(tvControllerName()==='arx_tools_skip'||tvControllerName()==='arx_tools_menu'){
       if(L.Controller&&L.Controller.toggle)L.Controller.toggle('player');
@@ -742,7 +738,7 @@
     setupItem('type_postcredits','trigger','Пропуск сцен после титров (осторожно)',false);
     setupItem('introhater','trigger','IntroHater (экспериментальный источник)',false);
     setupItem('sub_suggestions','trigger','Подсказки по паузам в субтитрах (только ручной пропуск)',false);
-    setupItem('quick','trigger','Показывать кнопку ARX с дополнительными функциями',true);
+    setupItem('quick','trigger','Кнопка ARX в штатной панели плеера',true);
     setupItem('red_key','trigger','Красная кнопка пульта: пропустить',false);
     setupItem('info','trigger','Оставшееся время и время окончания',false);
     setupItem('stats','trigger','Информация о разрешении и буфере',false);
@@ -771,6 +767,8 @@
   }
   function init(){
     L=window.Lampa;if(mounted||!L||!L.Storage||!L.Player||!L.Player.listener||!L.SettingsApi)return;
+    // Remove legacy corner buttons left by older ARX builds.
+    try{var legacy=document.querySelectorAll('.arx-tools-quick');for(var i=0;i<legacy.length;i++)if(legacy[i].parentNode)legacy[i].parentNode.removeChild(legacy[i]);}catch(e){}
     mounted=true;settings();controls();loadSubtitles();
     L.Player.listener.follow('start',playerStart);
     L.Player.listener.follow('ready',function(data){if(!current)playerStart(data);bindVideo();tick();});
