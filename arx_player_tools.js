@@ -35,14 +35,16 @@
     var tmdb=String(p.tmdb_id||c.id||'').trim();
     var mal=positiveInt(p.mal_id||p.malId||c.mal_id||c.malId||c.myanimelist_id);
     if((mal===null||mal===0)&&(imdb||tmdb))mal=positiveInt(get('mal_'+(imdb||tmdb),null));
-    var season=p.season,episode=p.episode;
+    var season=p.season!=null?p.season:p.season_number,episode=p.episode!=null?p.episode:p.episode_number;
     for(var i=0;i<pl.length;i++){var e=pl[i];if(e&&(e.url===p.url||(pl.length===1&&!p.url))){
       if(season==null)season=e.season!=null?e.season:e.s;
       if(episode==null)episode=e.episode!=null?e.episode:e.e;
       if(mal==null)mal=positiveInt(e.mal_id||e.malId);
       break;
     }}
-    var title=String(p.title||p.name||''), m=title.match(/(?:S|С)(\d{1,2})\s*(?:E|Е)(\d{1,3})/i);
+    var title=String(p.title||p.name||'')+' '+String(p.fname||p.path||'');
+    var m=title.match(/(?:S|С)(\d{1,2})[ ._-]*(?:E|Е)(\d{1,3})/i)||
+      title.replace(/\b\d{3,4}x\d{3,4}\b/gi,' ').match(/(?:^|[^\d])(\d{1,2})x(\d{1,3})(?!\d)/i);
     if(m){if(season==null)season=m[1];if(episode==null)episode=m[2];}
     var sn=positiveInt(season),en=positiveInt(episode);
     if((sn==null||en==null)&&p.file) {
@@ -793,7 +795,26 @@
   }
   function subtitleFind(language){
     if(!current)return;
-    var m=current.meta;if(!m.imdb){subtitleNotice('для поиска необходим IMDb ID карточки');return;}
+    var m=current.meta;
+    if(!m.imdb){
+      var card=readCard(current.data),tmdb=m.tmdb;
+      if(tmdb&&L.TMDB&&typeof L.TMDB.external_imdb_id==='function'){
+        var startToken=++subtitles.token;
+        subtitles.status='Определяю IMDb ID через TMDB...';renderPanel();
+        var isTV=(!m.movie)||(card&&(card.number_of_seasons||card.first_air_date||
+          card.media_type==='tv'||card.name||card.original_name));
+        try{
+          L.TMDB.external_imdb_id({type:isTV?'tv':'movie',id:tmdb},function(id){
+            if(startToken!==subtitles.token||!current)return;
+            id=String(id||'').trim();
+            if(!/^tt\d{5,12}$/.test(id)){subtitleNotice('TMDB не вернул IMDb ID');return;}
+            m.imdb=id;subtitleFind(language);
+          });
+        }catch(e){subtitleNotice('не удалось получить IMDb ID из TMDB');}
+        return;
+      }
+      subtitleNotice('для поиска необходим IMDb ID карточки');return;
+    }
     var token=++subtitles.token,server=subtitleServer(),serial=m.season!==null&&m.episode!==null;
     var ep=serial?'&season='+m.season+'&episode='+m.episode:'';
     subtitles.items=[];subtitles.lang=language;subtitles.status='Поиск '+(language==='rus'?'русских':'английских')+' субтитров...';
