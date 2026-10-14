@@ -524,6 +524,9 @@
     if(isFinite(now)&&on('skip',true)&&!window.__skipIntroLoaded){
       var found=null;
       current.segments.some(function(s){
+        // Native Lampa Skip already handles segments supplied by the playback source.
+        // Suppress duplicate UI/seek and preserve the built-in player_skip controller.
+        if(s.source==='Lampa' && document.querySelector && document.querySelector('.player-skip'))return false;
         if(!on('type_'+s.type,s.type!=='preview'&&s.type!=='ad'&&s.type!=='postcredits'))return false;
         if(current.ignored[s.type+'-'+s.start])return false;
         if(now>=s.start&&now<s.end-0.5){found=s;return true;}
