@@ -1,4 +1,4 @@
-/* ARX Player Tools 0.5.3 — Lampa internal HTML5 player
+/* ARX Player Tools 0.5.4 — Lampa internal HTML5 player
  * Public metadata only; no torrent URLs, credentials or watch history transmitted.
  * Supports skip services, episode-specific corrections, remote navigation,
  * HTML5 text tracks, chapter cues, sleep timer and playback information.
@@ -7,7 +7,7 @@
   'use strict';
   if (window.__ARX_PLAYER_TOOLS__) return;
   window.__ARX_PLAYER_TOOLS__ = true;
-  var L = window.Lampa, VERSION = '0.5.3', NS = 'arx_tools_';
+  var L = window.Lampa, VERSION = '0.5.4', NS = 'arx_tools_';
   var TYPES = ['intro','recap','credits','preview','ad','postcredits'];
   var NAMES = {intro:'Заставка',recap:'Рекап',credits:'Титры',preview:'Анонс',ad:'Реклама',postcredits:'Сцена после титров'};
   var mounted = false, current = null, playerToken = 0, control = {}, attachedVideo = null, cacheTimer = null;
@@ -616,8 +616,9 @@
         if(auto&&!current.auto[key]&&now>=found.start+0.1){
           current.auto[key]=true;current.hover=found;skipNow();
         }else if(!current.auto[key]){
-          var skipLabel='Пропустить: '+NAMES[found.type]+' ('+fmt(found.end-now)+')'+
-            (found.trusted?'':' · проверить');
+          // Reliability only controls automatic skipping; no internal status text
+          // is shown in the video player's button, title or accessibility label.
+          var skipLabel='Пропустить: '+NAMES[found.type]+' ('+fmt(found.end-now)+')';
           control.skip.setAttribute('aria-label',skipLabel);
           control.skip.title=skipLabel;
           control.skip.style.display=on('skip_ui',true)?'flex':'none';current.hover=found;
