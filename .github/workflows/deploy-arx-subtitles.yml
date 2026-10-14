@@ -1,0 +1,50 @@
+name: Deploy ARX subtitle backend
+on:
+  workflow_dispatch:
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate deployment secrets
+        shell: bash
+        env:
+          SSH_HOST: ${{ secrets.ARX_SSH_HOST }}
+          SSH_USER: ${{ secrets.ARX_SSH_USER }}
+          SSH_PORT: ${{ secrets.ARX_SSH_PORT }}
+          SSH_KEY: ${{ secrets.ARX_SSH_PRIVATE_KEY }}
+          SSH_HOSTKEY: ${{ secrets.ARX_SSH_KNOWN_HOSTS }}
+        run: |
+          set -euo pipefail
+          for name in SSH_HOST SSH_USER SSH_KEY SSH_HOSTKEY; do
+            if [ -z "${!name}" ]; then
+              echo "::error::$name secret is missing"
+              exit 1
+            fi
+          done
+          [[ "$SSH_HOST" =~ ^[A-Za-z0-9._-]+$ ]] || exit 1
+          [[ "$SSH_USER" =~ ^[A-Za-z0-9._-]+$ ]] || exit 1
+          [[ "${SSH_PORT:-22}" =~ ^[0-9]{1,5}$ ]] || exit 1
+      - name: Configure SSH
+        shell: bash
+        env:
+          SSH_KEY: ${{ secrets.ARX_SSH_PRIVATE_KEY }}
+          SSH_HOSTKEY: ${{ secrets.ARX_SSH_KNOWN_HOSTS }}
+        run: |
+          set -euo pipefail
+          install -m 700 -d "$HOME/.ssh"
+          printf '%s\n' "$SSH_KEY" > "$HOME/.ssh/id_ed25519"
+          chmod 600 "$HOME/.ssh/id_ed25519"
+          printf '%s\n' "$SSH_HOSTKEY" > "$HOME/.ssh/known_hosts"
+          chmod 600 "$HOME/.ssh/known_hosts"
+      - name: Deploy application without changing server .env
+        shell: bash
+        env:
+          SSH_HOST: ${{ secrets.ARX_SSH_HOST }}
+          SSH_USER: ${{ secrets.ARX_SSH_USER }}
+          SSH_PORT: ${{ secrets.ARX_SSH_PORT }}
+        run: |
+          set -euo pipefail
+          PORT="${SSH_PORT:-22}"
+          tar -czf - -C arx-subtitles-server Dockerfile compose.yml package.json server.mjs providers.mjs ai.mjs |
+            ssh -p "$PORT" -o BatchMode=yes -o StrictHostKeyChecking=yes "$SSH_USER@$SSH_HOST"               'mkdir -p /opt/arx-subtitles && tar -xzf - -C /opt/arx-subtitles && cd /opt/arx-subtitles && test -f .env && docker compose up -d --build && docker compose ps'
