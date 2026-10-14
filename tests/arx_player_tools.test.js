@@ -4,8 +4,11 @@ const fs=require('node:fs'),path=require('node:path'),vm=require('node:vm');
 const {test}=require('node:test');
 function run(exportsOnly=true, options={}) {
   let src=fs.readFileSync(path.join(__dirname,'..','arx_player_tools.js'),'utf8');
-  src=src.replace(/\}\)\(\);\s*$/,"window.__test={metadata,mapType,clock,put,parseSkipDB,parseIntroDB,parseTheIntroDB,parseAniSkip,parseIntroHater,fromLaunch,combine,fingerprint,appendManual,readManual,readChapters,readSubtitleSuggestions,remoteRequests,playerStart,playerVideo,tick,subtitleNormalize,srtParse,subtitleServer,subtitleFind,subtitleSelect,subtitleTranslate,subtitleDisable,subtitlePublicUrls,subtitleDownloadUrl,aiConfiguration,aiTranslationBatches,aiParseTranslation,aiChatRequest,subtitleUseCues,subtitleCancelTranslation};})();");
+  src=src.replace(/\}\)\(\);\s*$/,"window.__test={metadata,mapType,clock,put,parseSkipDB,parseIntroDB,parseTheIntroDB,parseAniSkip,parseIntroHater,fromLaunch,combine,fingerprint,appendManual,readManual,readChapters,readSubtitleSuggestions,remoteRequests,playerStart,playerVideo,tick,subtitleNormalize,srtParse,subtitleServer,subtitleFind,subtitleSelect,subtitleTranslate,subtitleDisable,subtitlePublicUrls,subtitleDownloadUrl,aiConfiguration,aiTranslationBatches,aiParseTranslation,aiChatRequest,subtitleUseCues,subtitleCancelTranslation,on,playerPanelVisible,hidePlayerInfo};})();");
   const handlers={},store={},settings=[],children=[],tvNodes=[],requests=[];
+  let panelVisible=Boolean(options.panelVisible),panelObserver=null;
+  const mockPanel={classList:{contains(name){return name==='panel--visible'&&panelVisible;}}};
+  mockPanel.setVisible=function(flag){panelVisible=!!flag;if(panelObserver)panelObserver.callback();};
   const video={
     duration:2820,currentTime:0,paused:false,volume:1,playbackRate:1,videoWidth:1920,videoHeight:1080,
     events:{},addEventListener(k,f){this.events[k]=f;},removeEventListener(k){delete this.events[k];},
@@ -61,6 +64,7 @@ function run(exportsOnly=true, options={}) {
       }
     };},
     querySelector(s){if(s==='.player')return div;
+      if(s==='.player-panel')return mockPanel;
       if(s==='.player-panel__right')return panelRight;return null;},
     getElementById(){return null;},addEventListener(){}
   };
@@ -75,6 +79,11 @@ function run(exportsOnly=true, options={}) {
     Controller:activeTV,Navigator:navigator
   };
   const window={Lampa:fakeLampa,Navigator:navigator,addEventListener(k,fn){handlers['window:'+k]=fn;}};
+  window.MutationObserver=function(callback){
+    this.callback=callback;
+    this.observe=function(){panelObserver=this;};
+    this.disconnect=function(){if(panelObserver===this)panelObserver=null;};
+  };
   function XHR(){
     this.readyState=0;this.status=0;this.responseText='';
   }
@@ -95,7 +104,7 @@ function run(exportsOnly=true, options={}) {
   vm.runInNewContext(src,context);
   if(!exportsOnly && handlers['app:app'])handlers['app:app']({type:'ready'});
   return {api:window.__test,handlers,settings,store,video,children,window,document:fakeDoc,
-    controller:activeTV,panelRight,navigator,requests};
+    controller:activeTV,panelRight,navigator,requests,mockPanel};
 }
 function plain(x){return JSON.parse(JSON.stringify(x));}
 const e=run(),f=e.api;
@@ -189,7 +198,7 @@ test('No external URL sent to providers, only IDs and duration',()=>{
   assert.equal(req.length,0);
 });
 test('Initialize and register internal player listeners on ready environment',()=>{
-  let a=run(false);assert.equal(a.settings.length,32);
+  let a=run(false);assert.equal(a.settings.length,34);
   assert.ok(a.handlers.start);assert.ok(a.handlers.ready);assert.ok(a.handlers.destroy);
   assert.ok(!a.children.some(x=>x.className==='arx-tools-quick'));
 });
@@ -462,6 +471,7 @@ test('Direct AI configuration is restricted to official DeepSeek/OpenRouter HTTP
  assert.equal(cfg.key,'');
  assert.equal(cfg.model,'deepseek-chat');
  a.window.Lampa.Storage.set('arx_tools_ai_provider','openrouter');
+ a.window.Lampa.Storage.set('arx_tools_ai_openrouter_auto',false);
  a.window.Lampa.Storage.set('arx_tools_ai_key_openrouter','test-key-not-real');
  a.window.Lampa.Storage.set('arx_tools_ai_model_openrouter','google/gemini-2.5-flash');
  cfg=a.api.aiConfiguration();
@@ -549,4 +559,92 @@ test('API 401 does not expose secrets in error messages or retry automatically',
  assert.equal(response.error,'HTTP 401');
  assert.ok(!JSON.stringify(response).includes('very-private-test-key'));
  assert.equal(a.requests.length,1);
+});
+
+test('Lampa absent boolean default is an empty string and must be disabled',()=>{
+ const a=run();
+ a.window.Lampa.Storage.get=function(name,fallback){
+   return (name==='arx_tools_info'||name==='arx_tools_auto'||name==='arx_tools_stats')?'':fallback;
+ };
+ assert.equal(a.api.on('info',false),false);
+ assert.equal(a.api.on('auto',false),false);
+ assert.equal(a.api.on('stats',false),false);
+ assert.equal(a.api.on('skip',true),true);
+});
+test('Info overlay obeys disabled setting and remains hidden even with player controls visible',()=>{
+ const a=run(false,{panelVisible:true});
+ a.handlers.start({url:'https://example.org/video.mkv',card:{id:22,imdb_id:'tt1234567'}});
+ const info=a.children.find(x=>x.className==='arx-tools-info');
+ assert.ok(info);
+ a.video.currentTime=75;a.video.events.timeupdate({type:'timeupdate'});
+ assert.equal(info.style.display,'none');
+ a.window.Lampa.Storage.set('arx_tools_info',false);
+ a.api.tick();
+ assert.equal(info.style.display,'none');
+});
+test('Enabled ARX info follows native panel visibility and hides immediately on DOM change',()=>{
+ const a=run(false,{panelVisible:true});
+ a.window.Lampa.Storage.set('arx_tools_info',true);
+ a.handlers.start({url:'https://example.org/video.mkv',card:{id:22,imdb_id:'tt1234567'}});
+ const info=a.children.find(x=>x.className==='arx-tools-info');
+ a.video.currentTime=75;a.video.events.timeupdate({type:'timeupdate'});
+ assert.equal(info.style.display,'block');
+ a.mockPanel.setVisible(false);
+ assert.equal(info.style.display,'none','MutationObserver should immediately hide overlay');
+ a.video.events.timeupdate({type:'timeupdate'});
+ assert.equal(info.style.display,'none');
+ a.mockPanel.setVisible(true);
+ assert.equal(info.style.display,'block');
+ a.handlers.destroy();
+ assert.equal(info.style.display,'none');
+});
+test('OpenRouter selects Auto Router when toggle default is enabled',()=>{
+ const a=run();
+ a.window.Lampa.Storage.set('arx_tools_ai_provider','openrouter');
+ a.window.Lampa.Storage.set('arx_tools_ai_key_openrouter','test-openrouter-key');
+ a.window.Lampa.Storage.set('arx_tools_ai_model_openrouter','google/gemini-2.5-flash');
+ assert.equal(a.api.aiConfiguration().model,'openrouter/auto');
+ a.window.Lampa.Storage.set('arx_tools_ai_openrouter_auto',true);
+ assert.equal(a.api.aiConfiguration().model,'openrouter/auto');
+});
+test('OpenRouter manually selected preset overrides custom text only when auto disabled',()=>{
+ const a=run();
+ a.window.Lampa.Storage.set('arx_tools_ai_provider','openrouter');
+ a.window.Lampa.Storage.set('arx_tools_ai_openrouter_auto',false);
+ a.window.Lampa.Storage.set('arx_tools_ai_openrouter_manual_preset','openai/gpt-4.1-mini');
+ a.window.Lampa.Storage.set('arx_tools_ai_model_openrouter','google/gemini-2.5-flash');
+ assert.equal(a.api.aiConfiguration().model,'openai/gpt-4.1-mini');
+ a.window.Lampa.Storage.set('arx_tools_ai_openrouter_manual_preset','custom');
+ assert.equal(a.api.aiConfiguration().model,'google/gemini-2.5-flash');
+ a.window.Lampa.Storage.set('arx_tools_ai_openrouter_auto',true);
+ assert.equal(a.api.aiConfiguration().model,'openrouter/auto');
+});
+test('OpenRouter Auto Router chat body uses documented model slug, without changing keys',async()=>{
+ const a=run(false,{xhrResponse:(url,method,body)=>{
+   const packet=JSON.parse(body);
+   assert.equal(packet.model,'openrouter/auto');
+   assert.equal(url,'https://openrouter.ai/api/v1/chat/completions');
+   return {status:200,data:{choices:[{message:{content:'{"lines":["Привет"]}'}}]}};
+ }});
+ a.window.Lampa.Storage.set('arx_tools_ai_provider','openrouter');
+ a.window.Lampa.Storage.set('arx_tools_ai_key_openrouter','test-key');
+ const config=a.api.aiConfiguration();
+ const result=await a.api.aiChatRequest(config,[{start:1,end:4,text:'Hello'}],'en','ru');
+ assert.equal(result.ok,true);
+ assert.equal(a.requests[0].headers.Authorization,'Bearer test-key');
+});
+test('Auto router toggle and manual model entries have correct TV settings metadata',()=>{
+ const a=run(false);
+ const all=a.settings.filter(x=>x.param);
+ const toggle=all.find(x=>x.param.name==='arx_tools_ai_openrouter_auto');
+ assert.ok(toggle);assert.equal(toggle.param.type,'trigger');
+ assert.equal(toggle.param.default,true);
+ assert.equal(typeof toggle.onRender,'function');
+ assert.equal(typeof toggle.onChange,'function');
+ const select=all.find(x=>x.param.name==='arx_tools_ai_openrouter_manual_preset');
+ assert.ok(select);assert.equal(select.param.type,'select');
+ assert.equal(select.param.default,'custom');
+ assert.equal(typeof select.onRender,'function');
+ const manual=all.find(x=>x.param.name==='arx_tools_ai_model_openrouter');
+ assert.equal(typeof manual.onRender,'function');
 });
