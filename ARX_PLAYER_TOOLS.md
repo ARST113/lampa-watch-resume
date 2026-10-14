@@ -1,4 +1,4 @@
-# ARX Player Tools 0.3.0 для Lampa
+# ARX Player Tools 0.3.1 для Lampa
 
 Экспериментальный JS-плагин для внутреннего HTML5-видеоплеера Lampa. Не заменяет ARX TPlayer и не меняет встроенные видеодекодеры.
 
@@ -66,3 +66,17 @@ https://arst113.github.io/lampa-watch-resume/arx_player_tools.js
 - Ручная приёмка на Android TV пока не выполнена: проверить кнопку/пульт, смену серии, таймер, скорость, сохранение сегментов, субтитры и работу при потере сети.
 
 При любых несовпадениях временных меток оставляйте автопропуск выключенным.
+
+## Совместимость с пультом телевизора (0.3.1)
+
+Реализация сверена с `ARST113/lampa-source` (модули `src/core/controller.js`, `src/core/keypad.js`, `src/interaction/player/skip.js`, `src/interaction/player/panel.js`).
+
+- В штатную панель `.player-panel__right` добавлена кнопка `ARX` с классом `.selector` и событием `hover:enter`. Если правой секции нет, используются запасные секции панели.
+- Через `Controller.add('arx_tools_menu', ...)` регистрируется отдельный контроллер: `Controller.collectionSet`, `Controller.collectionFocus`, перемещение стрелками `Navigator.move`, `Controller.toggle` и возврат в предыдущий контроллер.
+- Когда ARX находит сегмент во внутреннем видеоплеере, отдельный контроллер `arx_tools_skip` фокусирует кнопку пропуска; `hover:enter` вызывает seek. Штатный `player_skip` Lampa имеет приоритет, а сегменты, уже переданные Lampa, дополнительно не обрабатываются ARX при наличии родного Skip UI.
+- События браузера `click` сохранены для мыши/тача; повторное срабатывание `click` → `hover:enter` подавляется.
+- Back/Return (Esc, Samsung 10009, LG 461, Backspace, Orsay 88) закрывает ARX-меню, не закрывая видео. Остальные направления, Enter/OK обрабатывает контроллер Lampa.
+
+**Автоматические проверки:** 34 теста, включая программную имитацию Lampa Controller, hover:enter, стрелок, Back, пропуска OK и взаимодействия со штатным player_skip. [Лог GitHub Actions](https://github.com/ARST113/lampa-watch-resume/actions/runs/38514509166).
+
+**Ограничение тестов:** Chromium/Node с имитацией контроллера не воспроизводит полностью Android TV WebView, Samsung Tizen или LG WebOS и не является подтверждением работоспособности на физическом ТВ. Для окончательной приёмки необходимо проверить в реальном приложении: стрелка вниз → штатная панель → ARX → OK → навигация по меню → Back → переход к заставке → OK → отмена пропуска; затем повторить на Samsung/LG отдельно.
