@@ -1,4 +1,4 @@
-/* ARX Player Tools 0.3.2 — Lampa internal HTML5 player
+/* ARX Player Tools 0.4.0 — Lampa internal HTML5 player
  * Public metadata only; no torrent URLs, credentials or watch history transmitted.
  * Supports skip services, episode-specific corrections, remote navigation,
  * HTML5 text tracks, chapter cues, sleep timer and playback information.
@@ -7,7 +7,7 @@
   'use strict';
   if (window.__ARX_PLAYER_TOOLS__) return;
   window.__ARX_PLAYER_TOOLS__ = true;
-  var L = window.Lampa, VERSION = '0.3.2', NS = 'arx_tools_';
+  var L = window.Lampa, VERSION = '0.4.0', NS = 'arx_tools_';
   var SUBS_URL = 'https://m3dfatboi.github.io/lampa-opensubtitles-ru/opensubtitles_ru.js';
   var TYPES = ['intro','recap','credits','preview','ad','postcredits'];
   var NAMES = {intro:'Заставка',recap:'Рекап',credits:'Титры',preview:'Анонс',ad:'Реклама',postcredits:'Сцена после титров'};
@@ -361,7 +361,7 @@
   function css() {
     if(styleReady || document.getElementById('arx-tools-style')){styleReady=true;return;}
     var e=make('style');e.id='arx-tools-style';
-    e.textContent='.arx-tools-quick{display:none!important}.arx-tools-panel-entry{display:inline-flex;padding:8px 16px;min-height:36px;border:1px solid #d4dae2;border-radius:8px;background:#25313d;color:white}.arx-tools-panel-entry.focus,.arx-tools-panel-entry:focus,.arx-tools-panel button.focus,.arx-tools-skip.focus{outline:3px solid white}.arx-tools-quick,.arx-tools-skip,.arx-tools-undo,.arx-tools-panel button{background:rgba(16,24,32,.93);color:#fff;border:1px solid #ffffff55;border-radius:10px;padding:9px 13px;font:inherit;cursor:pointer}.arx-tools-quick{position:absolute;right:2%;bottom:11%;z-index:8503;font-size:.86em}.arx-tools-skip{position:absolute;right:2%;bottom:21%;z-index:8503}.arx-tools-undo{position:absolute;right:2%;bottom:32%;z-index:8503}.arx-tools-quick:focus,.arx-tools-skip:focus,.arx-tools-undo:focus,.arx-tools-panel button:focus{outline:3px solid #fff}.arx-tools-panel{position:absolute;right:2%;bottom:20%;max-height:65%;width:min(560px,94%);box-sizing:border-box;overflow:auto;background:rgba(15,20,29,.96);color:#fff;padding:15px;border-radius:12px;z-index:8510;box-shadow:0 4px 20px #000a}.arx-tools-panel-title{font-weight:bold;font-size:1.1em;margin-bottom:8px}.arx-tools-panel-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}.arx-tools-panel button{font-size:.9em}.arx-tools-info{position:absolute;right:2%;top:6%;color:#fff;background:#000a;padding:7px 12px;border-radius:8px;font-size:.80em;z-index:8501;pointer-events:none;white-space:pre-line}.arx-tools-dual{position:absolute;bottom:8%;left:5%;width:90%;z-index:8502;color:#f5e2a4;text-align:center;font-size:1.05em;text-shadow:1px 2px 4px #000,0 0 3px #000;pointer-events:none}.arx-tools-markers{position:absolute;inset:0;pointer-events:none;z-index:5}.arx-tools-marker{position:absolute;top:0;bottom:0;width:3px;opacity:.8;background:#e4d788;pointer-events:none}.arx-tools-marker[data-type="credits"]{background:#67c0e5}.arx-tools-marker[data-type="recap"]{background:#d9a0e8}.arx-tools-marker[data-type="ad"]{background:#df8888}.arx-tools-legend{font-size:.78em;opacity:.84;margin:4px 0}';
+    e.textContent='.arx-tools-subtitles{position:absolute;bottom:12%;left:6%;width:88%;text-align:center;color:#fff;font-size:1.4em;text-shadow:0 1px 5px #000,1px 2px 8px #000;pointer-events:none;white-space:pre-line;z-index:8520}.arx-tools-quick{display:none!important}.arx-tools-panel-entry{display:inline-flex;padding:8px 16px;min-height:36px;border:1px solid #d4dae2;border-radius:8px;background:#25313d;color:white}.arx-tools-panel-entry.focus,.arx-tools-panel-entry:focus,.arx-tools-panel button.focus,.arx-tools-skip.focus{outline:3px solid white}.arx-tools-quick,.arx-tools-skip,.arx-tools-undo,.arx-tools-panel button{background:rgba(16,24,32,.93);color:#fff;border:1px solid #ffffff55;border-radius:10px;padding:9px 13px;font:inherit;cursor:pointer}.arx-tools-quick{position:absolute;right:2%;bottom:11%;z-index:8503;font-size:.86em}.arx-tools-skip{position:absolute;right:2%;bottom:21%;z-index:8503}.arx-tools-undo{position:absolute;right:2%;bottom:32%;z-index:8503}.arx-tools-quick:focus,.arx-tools-skip:focus,.arx-tools-undo:focus,.arx-tools-panel button:focus{outline:3px solid #fff}.arx-tools-panel{position:absolute;right:2%;bottom:20%;max-height:65%;width:min(560px,94%);box-sizing:border-box;overflow:auto;background:rgba(15,20,29,.96);color:#fff;padding:15px;border-radius:12px;z-index:8510;box-shadow:0 4px 20px #000a}.arx-tools-panel-title{font-weight:bold;font-size:1.1em;margin-bottom:8px}.arx-tools-panel-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}.arx-tools-panel button{font-size:.9em}.arx-tools-info{position:absolute;right:2%;top:6%;color:#fff;background:#000a;padding:7px 12px;border-radius:8px;font-size:.80em;z-index:8501;pointer-events:none;white-space:pre-line}.arx-tools-dual{position:absolute;bottom:8%;left:5%;width:90%;z-index:8502;color:#f5e2a4;text-align:center;font-size:1.05em;text-shadow:1px 2px 4px #000,0 0 3px #000;pointer-events:none}.arx-tools-markers{position:absolute;inset:0;pointer-events:none;z-index:5}.arx-tools-marker{position:absolute;top:0;bottom:0;width:3px;opacity:.8;background:#e4d788;pointer-events:none}.arx-tools-marker[data-type="credits"]{background:#67c0e5}.arx-tools-marker[data-type="recap"]{background:#d9a0e8}.arx-tools-marker[data-type="ad"]{background:#df8888}.arx-tools-legend{font-size:.78em;opacity:.84;margin:4px 0}';
     document.head.appendChild(e);styleReady=true;
   }
   function placeRoot(){return document.querySelector('.player')||document.body;}
@@ -372,13 +372,14 @@
     control.undo=make('button','arx-tools-undo selector','Отменить перемотку');control.undo.type='button';control.undo.style.display='none';
     control.info=make('div','arx-tools-info');control.info.style.display='none';
     control.dual=make('div','arx-tools-dual');control.dual.style.display='none';
+    control.subtitles=make('div','arx-tools-subtitles');control.subtitles.style.display='none';
     control.panel=make('div','arx-tools-panel');control.panel.style.display='none';
     tvAction(control.skip,skipNow);tvAction(control.undo,undo);
-    ['skip','undo','info','dual','panel'].forEach(function(k){placeRoot().appendChild(control[k]);});
+    ['skip','undo','info','dual','subtitles','panel'].forEach(function(k){placeRoot().appendChild(control[k]);});
   }
   function mountControls() {
     if(!control.panel)return;var root=placeRoot();
-    ['skip','undo','info','dual','panel'].forEach(function(k){
+    ['skip','undo','info','dual','subtitles','panel'].forEach(function(k){
       if(control[k]&&control[k].parentNode!==root)root.appendChild(control[k]);
     });
     tvPanelEntry();
@@ -461,6 +462,7 @@
         set('mal_'+(m.imdb||m.tmdb),id);m.mal=id;refreshRemote(true);renderPanel();
       });
     }
+    subtitlePanel(p);
     var playback=line(p);
     [0.75,1,1.25,1.5,2].forEach(function(n){panelButton(playback,n+'×',function(){
       if(v){v.playbackRate=n;notice('Скорость '+n+'×');}
@@ -553,6 +555,7 @@
       control.info.textContent=text;control.info.style.display='block';
     }else if(control.info)control.info.style.display='none';
     renderSecondary();
+    subtitleTick();
     updateTimeline();
   }
   function setSecondaryTrack(track){
@@ -679,7 +682,7 @@
   function clearEpisode(){
     playerToken++;
     if(cacheTimer)clearTimeout(cacheTimer);cacheTimer=null;
-    cancelSleep();restoreTrack();hideSkip();clearUndo();closePanel();
+    cancelSleep();restoreTrack();subtitleDisable();hideSkip();clearUndo();closePanel();
     if(current && current.markerNode && current.markerNode.parentNode)current.markerNode.parentNode.removeChild(current.markerNode);
     current=null;
     if(control.info)control.info.style.display='none';
@@ -723,6 +726,182 @@
     var param={name:NS+key,type:type,default:def};if(values)param.values=values;
     L.SettingsApi.addParam({component:'arx_player_tools',param:param,field:{name:name}});
   }
+
+  // ARX integrated subtitles: ready-made OpenSubtitles + optional private AI backend.
+  var subtitles={items:[],cues:[],active:false,lang:'rus',status:'',token:0,job:'',progress:0,last:null};
+  function subtitleServer(){
+    var v=String(get('subtitle_api','')||'').trim().replace(/\/+$/,'');
+    if(/^https:\/\/[a-z0-9._:-]+(?:\/[a-z0-9/_-]*)?$/i.test(v))return v;
+    if(/^http:\/\/(localhost|127\.0\.0\.1|192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+)(:\d+)?$/i.test(v))return v;
+    return '';
+  }
+  function subtitleNotice(msg){
+    subtitles.status=msg;notice('ARX субтитры: '+msg);
+    if(control.panel && control.panel.style.display!=='none')renderPanel();
+  }
+  function requestSubtitle(url,method,data,privateToken,textMode){
+    return new Promise(function(resolve){
+      var xhr=new XMLHttpRequest(),done=false;
+      var timeout=setTimeout(function(){if(!done){done=true;try{xhr.abort();}catch(e){}resolve({ok:false,status:0});}},18000);
+      function finish(result){if(done)return;done=true;clearTimeout(timeout);resolve(result);}
+      try{
+        xhr.open(method,url,true);
+        if(method==='POST')xhr.setRequestHeader('Content-Type','application/json');
+        if(privateToken)xhr.setRequestHeader('X-ARX-Token',privateToken);
+        xhr.onreadystatechange=function(){if(xhr.readyState!==4)return;
+          var value=textMode?xhr.responseText:json(xhr.responseText);
+          finish({ok:xhr.status>=200&&xhr.status<300,status:xhr.status,data:value});
+        };
+        xhr.onerror=function(){finish({ok:false,status:0});};
+        xhr.send(method==='POST'?JSON.stringify(data):null);
+      }catch(e){finish({ok:false,status:0});}
+    });
+  }
+  function subtitleNormalize(stremio,rest,language){
+    var list=[],seen={};
+    function putSub(id,title,score,source){
+      id=String(id||'');if(!/^\d{3,20}$/.test(id)||seen[id])return;
+      seen[id]=true;list.push({id:id,title:String(title||'Субтитры').slice(0,125),
+        score:Number(score)||0,source:source,lang:language});
+    }
+    ((stremio&&stremio.subtitles)||[]).forEach(function(x){
+      var lang=String(x.lang||x.language||'').toLowerCase();
+      if(lang!==language && !(language==='rus'&&lang==='ru') && !(language==='eng'&&lang==='en'))return;
+      var match=String(x.url||'').match(/\/file\/(\d{3,20})(?:\.srt)?(?:[?#]|$)/);
+      if(match)putSub(match[1],x.subtitleFileName||x.filename,x.g,'Stremio');
+    });
+    (Array.isArray(rest)?rest:[]).forEach(function(x){
+      if(String(x.SubLanguageID||'').toLowerCase()!==language)return;
+      putSub(x.IDSubtitleFile,x.SubFileName||x.MovieReleaseName,x.SubDownloadsCnt,'OpenSubtitles REST');
+    });
+    list.sort(function(a,b){return b.score-a.score;});return list.slice(0,15);
+  }
+  function srtParse(raw){
+    var cues=[],blocks=String(raw||'').replace(/^\uFEFF/,'').replace(/\r\n?/g,'\n').split(/\n\s*\n/);
+    function secs(v){var parts=String(v||'').trim().replace(',','.').split(':'),n=0;
+      if(parts.length<2||parts.length>3)return NaN;
+      for(var i=0;i<parts.length;i++){if(!/^\d+(\.\d+)?$/.test(parts[i]))return NaN;n=n*60+Number(parts[i]);}return n;
+    }
+    blocks.forEach(function(block){
+      var lines=block.trim().split('\n'),i=/^\d+$/.test(lines[0]||'')?1:0;
+      if(!lines[i]||lines[i].indexOf('-->')<0)return;
+      var part=lines[i].split('-->'),a=secs(part[0]),b=secs(part[1].trim().split(/\s+/)[0]);
+      var text=lines.slice(i+1).join('\n').replace(/<[^>]*>/g,'').trim();
+      if(isFinite(a)&&isFinite(b)&&b>a&&text&&cues.length<3500)cues.push({start:a,end:b,text:text});
+    });
+    return cues;
+  }
+  function subtitleFind(language){
+    if(!current)return;
+    var m=current.meta;if(!m.imdb){subtitleNotice('для поиска необходим IMDb ID карточки');return;}
+    var token=++subtitles.token,server=subtitleServer(),serial=m.season!==null&&m.episode!==null;
+    var ep=serial?'&season='+m.season+'&episode='+m.episode:'';
+    subtitles.items=[];subtitles.lang=language;subtitles.status='Поиск '+(language==='rus'?'русских':'английских')+' субтитров...';
+    renderPanel();
+    if(server){
+      requestSubtitle(server+'/v1/subtitles/search?imdb_id='+m.imdb+ep+'&lang='+language,'GET',null,'',false)
+        .then(function(r){
+          if(token!==subtitles.token||!current)return;
+          subtitles.items=r.ok&&r.data&&Array.isArray(r.data.subtitles)?r.data.subtitles.slice(0,15):[];
+          subtitleNotice(subtitles.items.length?'Найдено '+subtitles.items.length+' вариантов':'Нет результатов или сервер недоступен');
+        });return;
+    }
+    // Backend not yet deployed: free sources remain available without the AI layer.
+    var ident=m.imdb+(serial?':'+m.season+':'+m.episode:'');
+    var url='https://opensubtitles-v3.strem.io/subtitles/'+(serial?'series':'movie')+'/'+encodeURIComponent(ident)+'.json';
+    var rest='https://rest.opensubtitles.org/search/'+(serial?'episode-'+m.episode+'/':'')+
+      'imdbid-'+m.imdb.slice(2)+'/'+(serial?'season-'+m.season+'/':'')+'sublanguageid-'+language;
+    Promise.all([requestSubtitle(url,'GET'),requestSubtitle(rest,'GET')]).then(function(r){
+      if(token!==subtitles.token||!current)return;
+      subtitles.items=subtitleNormalize(r[0].data,r[1].data,language);
+      subtitleNotice(subtitles.items.length?'Найдено '+subtitles.items.length+' вариантов':
+        'Источники недоступны или результатов нет');
+    });
+  }
+  function subtitleSelect(item){
+    if(!current||!item||!/^\d{3,20}$/.test(String(item.id)))return;
+    var token=++subtitles.token,server=subtitleServer(),id=String(item.id);
+    var path=server?server+'/v1/subtitles/file/'+id:
+      'https://subs5.strem.io/en/download/subencoding-stremio-utf8/src-api/file/'+id+'.srt';
+    subtitles.status='Загрузка '+item.title;renderPanel();
+    requestSubtitle(path,'GET',null,'',!server).then(function(r){
+      if(token!==subtitles.token||!current)return;
+      var cues=server?(r.data&&r.data.cues):srtParse(r.data);
+      if(!r.ok||!Array.isArray(cues)||!cues.length){subtitleNotice('не удалось загрузить дорожку');return;}
+      subtitles.cues=cues;subtitles.active=true;subtitles.lang=item.lang||subtitles.lang;
+      subtitles.last=null;subtitles.status='Загружено '+cues.length+' реплик';
+      subtitleTick();renderPanel();
+    });
+  }
+  function subtitleDisable(){
+    ++subtitles.token;subtitles.cues=[];subtitles.active=false;subtitles.last=null;
+    subtitles.job='';subtitles.progress=0;
+    if(control.subtitles)control.subtitles.style.display='none';
+  }
+  function subtitleTick(){
+    if(!control.subtitles)return;
+    if(!current||!subtitles.active||!subtitles.cues.length){control.subtitles.style.display='none';return;}
+    var t=time(),list=subtitles.cues,lo=0,hi=list.length-1,found=-1;
+    if(!isFinite(t))return;
+    while(lo<=hi){var mid=(lo+hi)>>1;
+      if(list[mid].start<=t){found=mid;lo=mid+1;}else hi=mid-1;}
+    var text=found>=0&&list[found].end>=t?String(list[found].text||''):'';
+    if(text!==subtitles.last){
+      subtitles.last=text;control.subtitles.textContent=text;
+      control.subtitles.style.display=text?'block':'none';
+    }
+  }
+  function subtitleTranslate(){
+    if(!subtitles.active||!subtitles.cues.length){subtitleNotice('сначала выбери дорожку');return;}
+    var server=subtitleServer(),token=String(get('subtitle_client_token','')||'').trim();
+    if(!server||token.length<16){
+      subtitleNotice('ИИ требует адрес своего HTTPS-сервера и токен доступа в настройках ARX');return;
+    }
+    var identifier=++subtitles.token,source=subtitles.cues.slice(0),from=subtitles.lang==='rus'?'ru':'en';
+    subtitles.progress=0;subtitles.status='ИИ-перевод: отправка';renderPanel();
+    requestSubtitle(server+'/v1/ai/translate','POST',{cues:source,from:from,to:'ru'},token,false).then(function(r){
+      if(identifier!==subtitles.token||!current)return;
+      if(!r.ok||!r.data||!r.data.job_id){subtitleNotice('ИИ: '+(r.data&&r.data.error||'ошибка '+r.status));return;}
+      var job=r.data.job_id;subtitles.job=job;
+      function poll(){
+        if(identifier!==subtitles.token||!current)return;
+        requestSubtitle(server+'/v1/ai/jobs/'+encodeURIComponent(job),'GET',null,token,false).then(function(result){
+          if(identifier!==subtitles.token||!current)return;
+          if(!result.ok||!result.data){subtitleNotice('ИИ: не удалось получить статус');return;}
+          var data=result.data;
+          if(data.state==='completed'&&Array.isArray(data.cues)&&data.cues.length){
+            subtitles.cues=data.cues;subtitles.lang='rus';subtitles.active=true;
+            subtitles.last=null;subtitles.job='';subtitles.progress=100;
+            subtitles.status='ИИ-перевод завершён';subtitleTick();renderPanel();
+          }else if(data.state==='error'){subtitleNotice('ИИ: '+(data.error||'ошибка перевода'));}
+          else{
+            subtitles.progress=Number(data.progress)||0;
+            subtitles.status='ИИ-перевод '+subtitles.progress+'%';
+            if(control.panel && control.panel.style.display!=='none')renderPanel();
+            setTimeout(poll,3000);
+          }
+        });
+      }
+      poll();
+    });
+  }
+  function subtitlePanel(parent){
+    var row=line(parent);
+    panelButton(row,'Русские субтитры',function(){subtitleFind('rus');});
+    panelButton(row,'Английские для ИИ',function(){subtitleFind('eng');});
+    if(subtitles.active){
+      panelButton(row,'ИИ-перевод на русский',subtitleTranslate);
+      panelButton(row,'Отключить ARX-субтитры',function(){subtitleDisable();renderPanel();});
+    }
+    if(subtitles.status)parent.appendChild(make('div','arx-tools-legend',subtitles.status));
+    subtitles.items.slice(0,12).forEach(function(item){
+      var r=line(parent),name=item.title.length>65?item.title.slice(0,65)+'…':item.title;
+      panelButton(r,item.source+' · '+name,function(){subtitleSelect(item);});
+    });
+    if(!subtitleServer())parent.appendChild(make('div','arx-tools-legend',
+      'Поиск без ИИ-сервера. Для перевода укажи HTTPS API в настройках ARX.'));
+  }
+
   function settings(){
     L.SettingsApi.addComponent({component:'arx_player_tools',name:'ARX Player Tools',after:'player',
       icon:'<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m5 4 12 8-12 8V4Z"/><path d="M20 4v16"/></svg>'});
@@ -747,7 +926,9 @@
     setupItem('sleep','select','Таймер сна при старте видео', 'off',
       {off:'Выкл','15':'15 минут','30':'30 минут','45':'45 минут','60':'60 минут','90':'90 минут',end:'После окончания'});
     setupItem('fade','trigger','Тихое затухание громкости перед сном',false);
-    setupItem('subs','trigger','Подключать OpenSubtitles RU (после перезапуска)',false);
+    setupItem('subtitle_api','input','URL своего сервера ARX Subtitles (HTTPS)', '');
+    setupItem('subtitle_client_token','input','Токен доступа к ИИ-переводу (не ключ DeepSeek)', '');
+    setupItem('subs','trigger','Устаревшая загрузка OpenSubtitles RU (рекомендуется отключить)',false);
     setupItem('dualsubs','trigger','Вторые HTML5-субтитры (экспериментально)',false);
     setupItem('dual_lang','select','Язык вторых субтитров','en',{en:'Английский',ru:'Русский',es:'Испанский',de:'Немецкий',fr:'Французский'});
     setupItem('dual_delay','select','Смещение вторых субтитров','0',
@@ -769,7 +950,10 @@
     L=window.Lampa;if(mounted||!L||!L.Storage||!L.Player||!L.Player.listener||!L.SettingsApi)return;
     // Remove legacy corner buttons left by older ARX builds.
     try{var legacy=document.querySelectorAll('.arx-tools-quick');for(var i=0;i<legacy.length;i++)if(legacy[i].parentNode)legacy[i].parentNode.removeChild(legacy[i]);}catch(e){}
-    mounted=true;settings();controls();loadSubtitles();
+    mounted=true;settings();controls();
+    // ARX now has independent subtitle search and AI integration; no auto-injection
+    // of third-party OpenSubtitles RU, whose unavailable service caused UI errors.
+
     L.Player.listener.follow('start',playerStart);
     L.Player.listener.follow('ready',function(data){if(!current)playerStart(data);bindVideo();tick();});
     L.Player.listener.follow('destroy',clearEpisode);
