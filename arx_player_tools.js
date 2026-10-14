@@ -1,4 +1,4 @@
-/* ARX Player Tools 0.5.5 — Lampa internal HTML5 player
+/* ARX Player Tools 0.6.0 — Lampa internal HTML5 player
  * Public metadata only; no torrent URLs, credentials or watch history transmitted.
  * Supports skip services, episode-specific corrections, remote navigation,
  * HTML5 text tracks, chapter cues, sleep timer and playback information.
@@ -7,7 +7,7 @@
   'use strict';
   if (window.__ARX_PLAYER_TOOLS__) return;
   window.__ARX_PLAYER_TOOLS__ = true;
-  var L = window.Lampa, VERSION = '0.5.5', NS = 'arx_tools_';
+  var L = window.Lampa, VERSION = '0.6.0', NS = 'arx_tools_';
   var TYPES = ['intro','recap','credits','preview','ad','postcredits'];
   var NAMES = {intro:'Заставка',recap:'Рекап',credits:'Титры',preview:'Анонс',ad:'Реклама',postcredits:'Сцена после титров'};
   var mounted = false, current = null, playerToken = 0, control = {}, attachedVideo = null, cacheTimer = null;
@@ -447,7 +447,7 @@
       return true;
     }catch(e){return false;}
   }
-  function skipNow() {
+  function skipNow(autoMode) {
     if(!current||!current.hover)return;
     var v=playerVideo(),s=current.hover,target=Math.min(s.end,duration()-0.1);
     if(!seekable(v,target)||target<=v.currentTime)return notice('ARX: поток не поддерживает перемотку');
@@ -456,7 +456,9 @@
     control.skip.style.display='none';clearUndo();
     if(tvControllerName()==='arx_tools_skip'&&L.Controller&&L.Controller.toggle)L.Controller.toggle('player');
     try{v.currentTime=target;}catch(e){notice('ARX: ошибка перемотки');return;}
-    control.undo.style.display='block';arxCapsuleVisible();undoTimer=setTimeout(clearUndo,10000);
+    // Auto-skip undo is deliberately brief; manual skips get slightly longer.
+    control.undo.style.display='block';arxCapsuleVisible();
+    undoTimer=setTimeout(clearUndo,autoMode===true?3000:5000);
   }
   function clearUndo(){if(undoTimer)clearTimeout(undoTimer);undoTimer=null;if(control.undo)control.undo.style.display='none';arxCapsuleVisible();}
   function undo() {
@@ -614,7 +616,7 @@
         var key=found.type+'-'+found.start,auto=on('auto',false)&&found.trusted&&
           found.type!=='ad'&&found.type!=='preview'&&found.type!=='postcredits';
         if(auto&&!current.auto[key]&&now>=found.start+0.1){
-          current.auto[key]=true;current.hover=found;skipNow();
+          current.auto[key]=true;current.hover=found;skipNow(true);
         }else if(!current.auto[key]){
           // Reliability only controls automatic skipping; no internal status text
           // is shown in the video player's button, title or accessibility label.
@@ -1025,29 +1027,66 @@
       control.subtitles.style.display=text?'block':'none';
     }
   }
-  // Direct client-side AI. No ARX server, no relay, no arbitrary API URLs.
-  // API credentials are stored in Lampa.Storage on the user's device.
+  // Public OpenSubtitles requests remain browser-only. AI is opt-in and
+  // uses an OpenAI-compatible HTTPS endpoint chosen by the user.
+  function aiEnabled(){return on('ai_enabled',false);}
+  function aiEndpoint(base){
+    base=String(base||'').trim();
+    // Accept https://host[:port]/prefix or a full /chat/completions URL.
+    // Reject embedded credentials, querystrings, fragments and HTTP.
+    if(!/^https:\/\/[a-z0-9.-]+(?::[0-9]{1,5})?(?:\/[a-z0-9._~!$&'()*+,;=:@%-]*)*\/?$/i.test(base) ||
+       base.length>500 || base.indexOf('@')>=0)return '';
+    base=base.replace(/\/+$/,'');
+    var authority=base.slice(8).split('/')[0],host=authority.split(':')[0];
+    if(!host||host.charAt(0)==='.'||host.endsWith('.')||host.indexOf('..')>=0)return '';
+    if(/\/chat\/completions$/i.test(base))return base;
+    return base+'/chat/completions';
+  }
   function aiConfiguration(){
-    var provider=String(get('ai_provider','deepseek'));
-    if(provider!=='openrouter')provider='deepseek';
-    var model;
-    if(provider==='deepseek')model=String(get('ai_model_deepseek','deepseek-chat')||'').trim();
-    else{
+    // Prior "deepseek" setting is mapped to OpenRouter, not silently reused.
+    var provider=String(get('ai_provider','openrouter')||'openrouter');
+    if(provider!=='custom')provider='openrouter';
+    var model='',key='',endpoint='';
+    if(provider==='openrouter'){
       var auto=on('ai_openrouter_auto',true),free=on('ai_openrouter_free',true);
       if(auto)model=free?'openrouter/free':'openrouter/auto';
       else{
         var chosen=String(get('ai_openrouter_manual_preset','custom')||'custom');
         model=chosen==='custom'?String(get('ai_model_openrouter','google/gemini-2.5-flash')||'').trim():chosen;
-        // With the Free guard active, only explicitly free model slugs may be
-        // sent. A paid/manual slug falls back to the free-only router.
-        if(free && model!=='openrouter/free' && !/:free$/.test(model))model='openrouter/free';
+        if(free&&model!=='openrouter/free'&&!/:free$/.test(model))model='openrouter/free';
       }
+      key=String(get('ai_key_openrouter','')||'').trim();
+      endpoint='https://openrouter.ai/api/v1/chat/completions';
+    }else{
+      model=String(get('ai_custom_model','')||'').trim();
+      key=String(get('ai_custom_key','')||'').trim();
+      endpoint=aiEndpoint(get('ai_custom_base',''));
     }
-    var key=String(get(provider==='deepseek'?'ai_key_deepseek':'ai_key_openrouter','')||'').trim();
-    if(!/^[a-zA-Z0-9._/:+-]{1,120}$/.test(model))model='';
-    return {provider:provider,model:model,key:key,
-      endpoint:provider==='deepseek'?'https://api.deepseek.com/v1/chat/completions':
-        'https://openrouter.ai/api/v1/chat/completions'};
+    if(!/^[a-zA-Z0-9._/:+-]{1,160}$/.test(model))model='';
+    return {provider:provider,model:model,key:key,endpoint:endpoint,enabled:aiEnabled()};
+  }
+  function aiSettingsVisibility(){
+    var enabled=aiEnabled(),provider=aiConfiguration().provider,auto=on('ai_openrouter_auto',true);
+    try{
+      if(window.$){
+        window.$('.arx-ai-option').toggleClass('hide',!enabled);
+        window.$('.arx-ai-openrouter-option').toggleClass('hide',!enabled||provider!=='openrouter');
+        window.$('.arx-ai-custom-option').toggleClass('hide',!enabled||provider!=='custom');
+        window.$('.arx-ai-manual-option').toggleClass('hide',!enabled||provider!=='openrouter'||auto);
+      }
+    }catch(e){}
+  }
+  function aiOption(group){
+    return {onRender:function(item){
+      item.addClass('arx-ai-option');
+      if(group==='openrouter')item.addClass('arx-ai-openrouter-option');
+      if(group==='custom')item.addClass('arx-ai-custom-option');
+      if(group==='manual')item.addClass('arx-ai-manual-option');
+      var enabled=aiEnabled(),provider=aiConfiguration().provider;
+      item.toggleClass('hide',!enabled||(group==='openrouter'&&provider!=='openrouter')||
+        (group==='custom'&&provider!=='custom')||
+        (group==='manual'&&(provider!=='openrouter'||on('ai_openrouter_auto',true))));
+    }};
   }
   function aiTranslationBatches(cues){
     var output=[],batch=[],chars=0;
@@ -1076,6 +1115,9 @@
     return obj.lines.map(function(x){return x.trim();});
   }
   function aiChatRequest(config,part,from,to){
+    if(!aiEnabled()||!config||!config.endpoint||!config.model||!config.key){
+      return Promise.resolve({ok:false,status:0,error:'ИИ выключен или не настроен'});
+    }
     return new Promise(function(resolve){
       var xhr=new XMLHttpRequest(),done=false;
       var timer=setTimeout(function(){if(done)return;finish({ok:false,status:0,error:'Время ожидания модели истекло'});try{xhr.abort();}catch(e){}},105000);
@@ -1120,11 +1162,12 @@
     });
   }
   function subtitleTranslate(){
+    if(!aiEnabled()){subtitleNotice('Включи «Использовать ИИ» в настройках ARX');return;}
     if(!subtitles.active||!subtitles.cues.length){subtitleNotice('сначала выбери дорожку');return;}
     if(subtitles.aiRunning){subtitleNotice('Перевод уже выполняется');return;}
     var config=aiConfiguration();
-    if(!config.key||!config.model){
-      subtitleNotice('Укажи ключ и модель '+(config.provider==='deepseek'?'DeepSeek':'OpenRouter')+' в настройках ARX');
+    if(!config.key||!config.model||!config.endpoint){
+      subtitleNotice('Укажи HTTPS API, модель и ключ '+(config.provider==='custom'?'OpenAI-совместимого сервиса':'OpenRouter')+' в настройках ARX');
       return;
     }
     var identifier=++subtitles.token,source=subtitles.cues.slice(0),from=subtitles.lang==='rus'?'ru':'en';
@@ -1133,7 +1176,7 @@
     var result=[],failed=false;
     subtitles.aiRunning=true;subtitles.progress=0;
     subtitles.status='ИИ-перевод '+config.provider+': 0%';renderPanel();
-    function alive(){return identifier===subtitles.token && !!current;}
+    function alive(){return identifier===subtitles.token && !!current && aiEnabled();}
     function next(i){
       if(!alive()){subtitles.aiRunning=false;return;}
       if(i===parts.length){
@@ -1180,9 +1223,9 @@
   function subtitlePanel(parent){
     var row=line(parent);
     panelButton(row,'Русские субтитры',function(){subtitleFind('rus');});
-    panelButton(row,'Английские для ИИ',function(){subtitleFind('eng');});
+    if(aiEnabled())panelButton(row,'Английские для ИИ',function(){subtitleFind('eng');});
     if(subtitles.active){
-      if(subtitles.lang!=='rus')panelButton(row,'ИИ-перевод на русский',subtitleTranslate);
+      if(aiEnabled()&&subtitles.lang!=='rus')panelButton(row,'ИИ-перевод на русский',subtitleTranslate);
       panelButton(row,'Отключить ARX-субтитры',function(){subtitleDisable();renderPanel();});
     }
     if(subtitles.status)parent.appendChild(make('div','arx-tools-legend',subtitles.status));
@@ -1190,18 +1233,20 @@
       var r=line(parent),name=item.title.length>65?item.title.slice(0,65)+'…':item.title;
       panelButton(r,item.source+' · '+name,function(){subtitleSelect(item);});
     });
-    var cfg=aiConfiguration();
-    parent.appendChild(make('div','arx-tools-legend',
-      'ИИ: '+(cfg.provider==='deepseek'?'DeepSeek':'OpenRouter')+' · '+(cfg.model||'модель не выбрана')+
-      (cfg.key?' · ключ настроен':' · укажи ключ в настройках')+
-      (cfg.provider==='openrouter'&&cfg.model==='openrouter/free'?' · бесплатно':'')+
-      (cfg.provider==='openrouter'&&cfg.model==='openrouter/auto'?' · возможна оплата':'')
-    ));
+    if(aiEnabled()){
+      var cfg=aiConfiguration();
+      parent.appendChild(make('div','arx-tools-legend',
+        'ИИ: '+(cfg.provider==='custom'?'OpenAI-совместимый API':'OpenRouter')+
+        ' · '+(cfg.model||'модель не указана')+
+        (cfg.key?' · ключ настроен':' · укажи ключ в настройках')+
+        (cfg.provider==='openrouter'&&cfg.model==='openrouter/free'?' · Free':'')
+      ));
+    }
     if(subtitles.aiRunning){var cancel=line(parent);
       panelButton(cancel,'Остановить ИИ-перевод ('+subtitles.progress+'%)',subtitleCancelTranslation);
     }
     if(!subtitleServer())parent.appendChild(make('div','arx-tools-legend',
-      'Готовые субтитры и ИИ работают без ARX-сервера, если API доступны с устройства.'));
+      'Готовые субтитры ищутся напрямую с устройства, без ИИ и ARX-сервера.'));
   }
 
   function settings(){
