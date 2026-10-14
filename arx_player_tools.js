@@ -330,8 +330,8 @@
         tvFocus(control.skip,placeRoot());
       },
       up:function(){openPanel();},down:function(){openPanel();},
-      left:function(){L.Controller.toggle('player');},
-      right:function(){L.Controller.toggle('player');},
+      left:function(){tvFocus(control.skipMenu,placeRoot());},
+      right:function(){tvFocus(control.skip,placeRoot());},
       back:function(){L.Controller.toggle('player');}
     });
   }
