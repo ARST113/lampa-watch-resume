@@ -706,7 +706,8 @@ test('Frosted TV controls group menu, skip and undo inside an accessible capsule
  const menu=capsule.children.find(x=>(x.className||'').includes('arx-tools-skip-menu'));
  assert.equal(typeof menu['hover:enter'],'function');
  const skip=capsule.children.find(x=>(x.className||'').includes('arx-tools-skip selector'));
- assert.ok(skip.children.some(x=>String(x.innerHTML||'').includes('<svg')));
+ assert.equal(skip.children.length,0,'Skip must be a text button without the skip-forward icon');
+ assert.equal(skip.textContent,'Пропустить: Заставка (00:32)');
 });
 test('D-pad Left moves from skip to menu and OK opens ARX, Back returns to video',()=>{
  const a=run(false);
@@ -783,6 +784,7 @@ test('Untrusted credits have a clean manual-skip label but do not auto-skip',asy
  const skip=capsule.children.find(x=>(x.className||'').split(' ').includes('arx-tools-skip'));
  assert.equal(skip.style.display,'flex');
  assert.equal(skip.title,'Пропустить: Титры (01:42)');
+ assert.equal(skip.textContent,skip.title);
  assert.equal(skip.title.includes('проверить'),false);
  assert.equal(a.video.currentTime,178,'Untrusted credits must remain manual even with auto-skip enabled');
  skip.click();
@@ -798,5 +800,30 @@ test('Trusted skip title is concise without internal reliability text',()=>{
  const capsule=a.children.find(x=>(x.className||'').split(' ').includes('arx-tools-capsule'));
  const skip=capsule.children.find(x=>(x.className||'').split(' ').includes('arx-tools-skip'));
  assert.equal(skip.title,'Пропустить: Заставка (00:30)');
+ assert.equal(skip.textContent,skip.title);
  assert.equal(skip.title.includes('проверить'),false);
+});
+
+test('Text skip button retains frosted capsule layout and remains wide enough on TV',()=>{
+ const a=run(false);
+ const css=a.children.find(x=>x.tagName==='style'&&x.id==='arx-tools-style').textContent;
+ assert.ok(css.includes('.arx-tools-capsule .arx-tools-skip{'));
+ assert.ok(css.includes('flex:0 1 auto;width:auto'));
+ assert.ok(css.includes('max-width:calc(100vw - 135px)'));
+ assert.ok(css.includes('white-space:nowrap;overflow:hidden;text-overflow:ellipsis'));
+ assert.ok(css.includes('background:rgba(255,255,255,.10)'));
+ assert.ok(!css.includes('background:rgba(75,52,91,.55)'));
+});
+test('D-pad OK still activates text skip and no internal reliability label appears',()=>{
+ const a=run(false);
+ a.handlers.start({url:'https://example.org/S01E01.mp4',card:{id:22,imdb_id:'tt1234567'},
+  season:1,episode:1,segments:{skip:[{start:60,end:95}]}});
+ a.video.currentTime=65;
+ a.video.events.timeupdate({type:'timeupdate'});
+ assert.equal(a.controller.enabled().name,'arx_tools_skip');
+ const btn=a.controller.selected;
+ assert.equal(btn.textContent,'Пропустить: Заставка (00:30)');
+ assert.ok(!btn.textContent.includes('проверить'));
+ btn['hover:enter']();
+ assert.equal(a.video.currentTime,95);
 });
