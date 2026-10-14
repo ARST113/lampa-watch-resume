@@ -183,7 +183,7 @@ test('No external URL sent to providers, only IDs and duration',()=>{
   assert.equal(req.length,0);
 });
 test('Initialize and register internal player listeners on ready environment',()=>{
-  let a=run(false);assert.equal(a.settings.length,27);
+  let a=run(false);assert.equal(a.settings.length,28);
   assert.ok(a.handlers.start);assert.ok(a.handlers.ready);assert.ok(a.handlers.destroy);
   assert.ok(!a.children.some(x=>x.className==='arx-tools-quick'));
 });
@@ -348,4 +348,10 @@ test('AI subtitle service URL is HTTPS-only except local development',()=>{
  assert.equal(a.api.subtitleServer(),'');
  a.window.Lampa.Storage.set('arx_tools_subtitle_api','https://subs.example.org');
  assert.equal(a.api.subtitleServer(),'https://subs.example.org');
+});
+
+test('legacy OpenSubtitles RU is disabled, without erasing its account settings',()=>{
+ const a=run(false);
+ assert.equal(a.store['opensubtitles_ru_enabled'],'false');
+ assert.equal(Object.hasOwn(a.store,'opensubtitles_ru_device_token'),false);
 });
