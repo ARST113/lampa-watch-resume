@@ -1,4 +1,4 @@
-/* ARX Player Tools 0.4.1 — Lampa internal HTML5 player
+/* ARX Player Tools 0.4.2 — Lampa internal HTML5 player
  * Public metadata only; no torrent URLs, credentials or watch history transmitted.
  * Supports skip services, episode-specific corrections, remote navigation,
  * HTML5 text tracks, chapter cues, sleep timer and playback information.
@@ -7,7 +7,7 @@
   'use strict';
   if (window.__ARX_PLAYER_TOOLS__) return;
   window.__ARX_PLAYER_TOOLS__ = true;
-  var L = window.Lampa, VERSION = '0.4.1', NS = 'arx_tools_';
+  var L = window.Lampa, VERSION = '0.4.2', NS = 'arx_tools_';
   var TYPES = ['intro','recap','credits','preview','ad','postcredits'];
   var NAMES = {intro:'Заставка',recap:'Рекап',credits:'Титры',preview:'Анонс',ad:'Реклама',postcredits:'Сцена после титров'};
   var mounted = false, current = null, playerToken = 0, control = {}, attachedVideo = null, cacheTimer = null;
@@ -713,7 +713,13 @@
     tick();
   }
   function setupItem(key,type,name,def,values){
-    var param={name:NS+key,type:type,default:def};if(values)param.values=values;
+    var param={name:NS+key,type:type,default:def};
+    // Lampa.SettingsApi calls Params.select(name, param.values, default)
+    // for BOTH select and input. Params.update reads values[name][key]
+    // unless values[name] is a string. An omitted input.values crashes
+    // the entire settings screen ("Cannot read properties of undefined").
+    if(type==='input') param.values='';
+    else if(typeof values!=='undefined') param.values=values;
     L.SettingsApi.addParam({component:'arx_player_tools',param:param,field:{name:name}});
   }
 
