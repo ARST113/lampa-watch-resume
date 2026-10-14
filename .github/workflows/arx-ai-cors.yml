@@ -11,18 +11,19 @@ jobs:
       - name: Check browser preflight without API keys
         shell: bash
         run: |
-          for provider in deepseek openrouter; do
-            if [ "$provider" = deepseek ]; then
-              target="https://api.deepseek.com/v1/chat/completions"
-            else
-              target="https://openrouter.ai/api/v1/chat/completions"
-            fi
-            echo "===== $provider ====="
-            curl --max-time 12 -sS -D /tmp/arx-cors.headers -o /dev/null \
-              -X OPTIONS \
-              -H 'Origin: https://lampa.mx' \
-              -H 'Access-Control-Request-Method: POST' \
-              -H 'Access-Control-Request-Headers: authorization,content-type' \
-              "$target" || true
-            grep -iE '^HTTP/|^access-control-allow-|^vary:|^server:' /tmp/arx-cors.headers || true
+          for origin in https://lampa.mx https://lampac.fun; do
+            for provider in deepseek openrouter; do
+              if [ "$provider" = deepseek ]; then
+                target="https://api.deepseek.com/v1/chat/completions"
+              else
+                target="https://openrouter.ai/api/v1/chat/completions"
+              fi
+              echo "===== $provider / $origin ====="
+              curl --max-time 12 -sS -D /tmp/arx-cors.headers -o /dev/null \
+                -X OPTIONS -H "Origin: $origin" \
+                -H 'Access-Control-Request-Method: POST' \
+                -H 'Access-Control-Request-Headers: authorization,content-type' \
+                "$target" || true
+              grep -iE '^HTTP/|^access-control-allow-' /tmp/arx-cors.headers || true
+            done
           done
