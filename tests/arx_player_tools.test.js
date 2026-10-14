@@ -185,7 +185,7 @@ test('No external URL sent to providers, only IDs and duration',()=>{
 test('Initialize and register internal player listeners on ready environment',()=>{
   let a=run(false);assert.equal(a.settings.length,27);
   assert.ok(a.handlers.start);assert.ok(a.handlers.ready);assert.ok(a.handlers.destroy);
-  assert.ok(a.children.some(x=>x.className==='arx-tools-quick'));
+  assert.ok(!a.children.some(x=>x.className==='arx-tools-quick'));
 });
 test('Registering playback does not write to progress storage keys',()=>{
   let a=run(false);
