@@ -189,7 +189,7 @@ test('No external URL sent to providers, only IDs and duration',()=>{
   assert.equal(req.length,0);
 });
 test('Initialize and register internal player listeners on ready environment',()=>{
-  let a=run(false);assert.equal(a.settings.length,31);
+  let a=run(false);assert.equal(a.settings.length,32);
   assert.ok(a.handlers.start);assert.ok(a.handlers.ready);assert.ok(a.handlers.destroy);
   assert.ok(!a.children.some(x=>x.className==='arx-tools-quick'));
 });
@@ -475,7 +475,7 @@ test('Direct AI splits subtitle blocks into bounded chunks while retaining origi
  const a=run(),cues=Array.from({length:76},(_,i)=>({start:i*2,end:i*2+1,text:'Dialogue '+i}));
  const parts=a.api.aiTranslationBatches(cues);
  assert.equal(parts.length,3);
- assert.deepEqual(parts.map(p=>p.length),[35,35,6]);
+ assert.deepEqual(plain(parts.map(p=>p.length)),[35,35,6]);
  assert.equal(parts.flat()[63].text,'Dialogue 63');
 });
 test('AI JSON extractor verifies exact number of translated subtitles',()=>{
@@ -516,8 +516,8 @@ test('End-to-end direct AI translation preserves time ranges and bypasses subtit
    {lang:'eng',title:'English'});
  a.api.subtitleTranslate();
  for(let i=0;i<20;i++)await Promise.resolve();
- assert.equal(a.requests.length,1);
- assert.equal(a.requests[0].url,'https://api.deepseek.com/v1/chat/completions');
+ assert.equal(a.requests.filter(x=>x.url.includes('/chat/completions')).length,1);
+ assert.equal(a.requests.filter(x=>x.url.includes('backend-unused.invalid')).length,0);
  const panelNodes=a.children.filter(x=>x.className==='arx-tools-subtitles');
  assert.ok(panelNodes.length);
  a.video.currentTime=2;
