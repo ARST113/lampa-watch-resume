@@ -299,3 +299,28 @@ test('TV: native skip button has priority while already visible',()=>{
   a.video.currentTime=66;a.video.events.timeupdate({type:'timeupdate'});
   assert.equal(a.controller.enabled().name,'player');
 });
+
+test('TV: native skip keeps focus when handling hidden launch-provided segments',()=>{
+  const a=run(false);
+  const native={className:'player-skip hide',classList:{contains(x){return x==='hide';}}};
+  const old=a.document.querySelector;
+  a.document.querySelector=function(sel){if(sel==='.player-skip')return native;return old.call(this,sel);};
+  a.handlers.start({url:'https://example.org/series.mkv',card:{id:22,imdb_id:'tt1234567'},
+    season:1,episode:1,segments:{skip:[{start:60,end:95}]}});
+  a.video.currentTime=65;
+  a.video.events.timeupdate({type:'timeupdate'});
+  assert.equal(a.controller.enabled().name,'player');
+  assert.equal(a.video.currentTime,65);
+});
+test('TV: native Back key closes ARX panel without closing video',()=>{
+  const a=run(false);
+  a.handlers.start({url:'https://example.org/movie.mkv',card:{id:22,imdb_id:'tt1234567'}});
+  a.controller.toggle('player_panel');
+  a.controller.selected['hover:enter']();
+  let prevented=false,stopped=false;
+  a.handlers['window:keydown']({keyCode:10009,preventDefault(){prevented=true;},
+    stopImmediatePropagation(){stopped=true;}});
+  assert.equal(prevented,true);
+  assert.equal(stopped,true);
+  assert.equal(a.controller.enabled().name,'player_panel');
+});
