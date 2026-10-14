@@ -8,7 +8,6 @@
   if (window.__ARX_PLAYER_TOOLS__) return;
   window.__ARX_PLAYER_TOOLS__ = true;
   var L = window.Lampa, VERSION = '0.4.0', NS = 'arx_tools_';
-  var SUBS_URL = 'https://m3dfatboi.github.io/lampa-opensubtitles-ru/opensubtitles_ru.js';
   var TYPES = ['intro','recap','credits','preview','ad','postcredits'];
   var NAMES = {intro:'Заставка',recap:'Рекап',credits:'Титры',preview:'Анонс',ad:'Реклама',postcredits:'Сцена после титров'};
   var mounted = false, current = null, playerToken = 0, control = {}, attachedVideo = null, cacheTimer = null;
@@ -713,17 +712,6 @@
     if(on('skip',true)&&!window.__skipIntroLoaded)refreshRemote(false);
     tick();
   }
-  function loadSubtitles(){
-    if(!on('subs',false))return;
-    try{
-      var plugins=json(L.Storage.get('plugins',[]))||[];
-      if(Array.isArray(plugins)&&plugins.some(function(x){return x&&String(x.url||'').indexOf('opensubtitles_ru.js')>=0;}))return;
-      if(document.querySelector('script[data-arx-subs]'))return;
-      var s=make('script');s.src=SUBS_URL;s.async=true;s.setAttribute('data-arx-subs','1');
-      s.onerror=function(){notice('OpenSubtitles RU: ошибка загрузки');};
-      document.head.appendChild(s);
-    }catch(e){log('OpenSubtitles loader',e);}
-  }
   function setupItem(key,type,name,def,values){
     var param={name:NS+key,type:type,default:def};if(values)param.values=values;
     L.SettingsApi.addParam({component:'arx_player_tools',param:param,field:{name:name}});
@@ -950,7 +938,6 @@
     setupItem('subtitle_replace_legacy','trigger','Отключать старый OpenSubtitles RU (конфликтует с ARX)',true);
     setupItem('subtitle_api','input','URL своего сервера ARX Subtitles (HTTPS)', '');
     setupItem('subtitle_client_token','input','Токен доступа к ИИ-переводу (не ключ DeepSeek)', '');
-    setupItem('subs','trigger','Устаревшая загрузка OpenSubtitles RU (рекомендуется отключить)',false);
     setupItem('dualsubs','trigger','Вторые HTML5-субтитры (экспериментально)',false);
     setupItem('dual_lang','select','Язык вторых субтитров','en',{en:'Английский',ru:'Русский',es:'Испанский',de:'Немецкий',fr:'Французский'});
     setupItem('dual_delay','select','Смещение вторых субтитров','0',
