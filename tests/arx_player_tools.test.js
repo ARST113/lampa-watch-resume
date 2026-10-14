@@ -4,8 +4,8 @@ const fs=require('node:fs'),path=require('node:path'),vm=require('node:vm');
 const {test}=require('node:test');
 function run(exportsOnly=true, options={}) {
   let src=fs.readFileSync(path.join(__dirname,'..','arx_player_tools.js'),'utf8');
-  src=src.replace(/\}\)\(\);\s*$/,"window.__test={metadata,mapType,clock,put,parseSkipDB,parseIntroDB,parseTheIntroDB,parseAniSkip,parseIntroHater,fromLaunch,combine,fingerprint,appendManual,readManual,readChapters,readSubtitleSuggestions,remoteRequests,playerStart,playerVideo,tick,subtitleNormalize,srtParse,subtitleServer,subtitleFind,subtitleSelect,subtitleTranslate,subtitleDisable,subtitlePublicUrls,subtitleDownloadUrl,aiConfiguration,aiTranslationBatches,aiParseTranslation,aiChatRequest,subtitleUseCues,subtitleCancelTranslation,on,playerPanelVisible,hidePlayerInfo};})();");
-  const handlers={},store={},settings=[],children=[],tvNodes=[],requests=[];
+  src=src.replace(/\}\)\(\);\s*$/,"window.__test={metadata,mapType,clock,put,parseSkipDB,parseIntroDB,parseTheIntroDB,parseAniSkip,parseIntroHater,fromLaunch,combine,fingerprint,appendManual,readManual,readChapters,readSubtitleSuggestions,remoteRequests,playerStart,playerVideo,tick,subtitleNormalize,srtParse,subtitleServer,subtitleFind,subtitleSelect,subtitleTranslate,subtitleDisable,subtitlePublicUrls,subtitleDownloadUrl,aiConfiguration,aiTranslationBatches,aiParseTranslation,aiChatRequest,subtitleUseCues,subtitleCancelTranslation,on,playerPanelVisible,hidePlayerInfo,aiEnabled,aiEndpoint,aiSettingsVisibility,skipNow};})();");
+  const handlers={},store={},settings=[],children=[],tvNodes=[],requests=[],timeouts=[];
   let panelVisible=Boolean(options.panelVisible),panelObserver=null;
   const mockPanel={classList:{contains(name){return name==='panel--visible'&&panelVisible;}}};
   mockPanel.setVisible=function(flag){panelVisible=!!flag;if(panelObserver)panelObserver.callback();};
@@ -99,12 +99,12 @@ function run(exportsOnly=true, options={}) {
   };
   XHR.prototype.abort=function(){};
   const context={window,document:fakeDoc,console,
-    XMLHttpRequest:XHR,setTimeout(){return 1;},clearTimeout(){},setInterval(){return 1;},clearInterval(){},
+    XMLHttpRequest:XHR,setTimeout(fn,delay){timeouts.push({fn,delay});return timeouts.length;},clearTimeout(){},setInterval(){return 1;},clearInterval(){},
     Date,Math,isFinite,Number,Array,Object,JSON,parseFloat,parseInt,Promise,encodeURIComponent};
   vm.runInNewContext(src,context);
   if(!exportsOnly && handlers['app:app'])handlers['app:app']({type:'ready'});
   return {api:window.__test,handlers,settings,store,video,children,window,document:fakeDoc,
-    controller:activeTV,panelRight,navigator,requests,mockPanel};
+    controller:activeTV,panelRight,navigator,requests,mockPanel,timeouts};
 }
 function plain(x){return JSON.parse(JSON.stringify(x));}
 const e=run(),f=e.api;
@@ -198,7 +198,7 @@ test('No external URL sent to providers, only IDs and duration',()=>{
   assert.equal(req.length,0);
 });
 test('Initialize and register internal player listeners on ready environment',()=>{
-  let a=run(false);assert.equal(a.settings.length,35);
+  let a=run(false);assert.equal(a.settings.length,36);
   assert.ok(a.handlers.start);assert.ok(a.handlers.ready);assert.ok(a.handlers.destroy);
   assert.ok(!a.children.some(x=>x.className==='arx-tools-quick'));
 });
@@ -432,7 +432,7 @@ test('Lampa SettingsApi renders ARX text inputs without undefined Params.values'
  }
  const inputs=a.settings.filter(x=>x.param?.type==='input');
  assert.deepEqual(inputs.map(x=>x.param.name).sort(),
-   ['arx_tools_ai_key_deepseek','arx_tools_ai_key_openrouter','arx_tools_ai_model_deepseek','arx_tools_ai_model_openrouter','arx_tools_subtitle_api']);
+   ['arx_tools_ai_custom_base','arx_tools_ai_custom_key','arx_tools_ai_custom_model','arx_tools_ai_key_openrouter','arx_tools_ai_model_openrouter','arx_tools_subtitle_api']);
  for(const input of inputs){
    const name=input.param.name,key='';
    // This previously raised: Cannot read properties of undefined (reading '').
@@ -466,24 +466,28 @@ test('All ARX settings resolve via Lampa Params.update for defaults and stored c
  }
 });
 
-test('Direct AI configuration is restricted to official DeepSeek/OpenRouter HTTPS hosts',()=>{
+test('Direct AI configuration uses OpenRouter by default and accepts any validated HTTPS OpenAI compatible base',()=>{
  const a=run();
  let cfg=a.api.aiConfiguration();
- assert.equal(cfg.provider,'deepseek');
- assert.equal(cfg.endpoint,'https://api.deepseek.com/v1/chat/completions');
- assert.equal(cfg.key,'');
- assert.equal(cfg.model,'deepseek-chat');
- a.window.Lampa.Storage.set('arx_tools_ai_provider','openrouter');
- a.window.Lampa.Storage.set('arx_tools_ai_openrouter_auto',false);
- a.window.Lampa.Storage.set('arx_tools_ai_openrouter_free',false);
- a.window.Lampa.Storage.set('arx_tools_ai_key_openrouter','test-key-not-real');
- a.window.Lampa.Storage.set('arx_tools_ai_model_openrouter','google/gemini-2.5-flash');
- cfg=a.api.aiConfiguration();
+ assert.equal(cfg.provider,'openrouter');
  assert.equal(cfg.endpoint,'https://openrouter.ai/api/v1/chat/completions');
- assert.equal(cfg.key,'test-key-not-real');
- assert.equal(cfg.model,'google/gemini-2.5-flash');
- a.window.Lampa.Storage.set('arx_tools_ai_model_openrouter','https://attacker.invalid?x');
- assert.equal(a.api.aiConfiguration().model,'');
+ assert.equal(cfg.model,'openrouter/free');
+ assert.equal(cfg.enabled,false);
+ a.window.Lampa.Storage.set('arx_tools_ai_provider','custom');
+ a.window.Lampa.Storage.set('arx_tools_ai_custom_base','https://translate.example.org/v1');
+ a.window.Lampa.Storage.set('arx_tools_ai_custom_model','custom-model-1');
+ a.window.Lampa.Storage.set('arx_tools_ai_custom_key','test-secret');
+ cfg=a.api.aiConfiguration();
+ assert.equal(cfg.provider,'custom');
+ assert.equal(cfg.endpoint,'https://translate.example.org/v1/chat/completions');
+ assert.equal(cfg.model,'custom-model-1');
+ assert.equal(cfg.key,'test-secret');
+ a.window.Lampa.Storage.set('arx_tools_ai_custom_base','http://translate.example.org/v1');
+ assert.equal(a.api.aiConfiguration().endpoint,'');
+ assert.equal(a.api.aiEndpoint('https://translate.example.org/v1/chat/completions'),
+  'https://translate.example.org/v1/chat/completions');
+ assert.equal(a.api.aiEndpoint('https://user:password@translate.example.org/v1'),'');
+ assert.equal(a.api.aiEndpoint('https://translate.example.org/v1?secret=yes'),'');
 });
 test('Direct AI splits subtitle blocks into bounded chunks while retaining original cues',()=>{
  const a=run(),cues=Array.from({length:76},(_,i)=>({start:i*2,end:i*2+1,text:'Dialogue '+i}));
@@ -498,36 +502,42 @@ test('AI JSON extractor verifies exact number of translated subtitles',()=>{
  assert.throws(()=>a.api.aiParseTranslation('{"lines":["one"]}',2));
  assert.throws(()=>a.api.aiParseTranslation('Sorry, unable to translate',2));
 });
-test('Direct AI chat uses provider header and returns validated translated lines',async()=>{
+test('Direct AI OpenAI-compatible provider uses user-chosen URL and key, preserving translated lines',async()=>{
  const a=run(false,{xhrResponse:(url,method,body)=>{
-   if(!url.includes('api.deepseek.com'))return {status:404,data:{error:'unknown'}};
+   assert.equal(url,'https://translate.example.org/v1/chat/completions');
    assert.equal(method,'POST');
-   const packet=JSON.parse(body),request=JSON.parse(packet.messages[1].content);
-   assert.equal(packet.model,'deepseek-chat');
-   return {status:200,data:{choices:[{message:{content:JSON.stringify({lines:request.lines.map(x=>'RU: '+x.text)})}}]}};
+   const payload=JSON.parse(body),request=JSON.parse(payload.messages[1].content);
+   assert.equal(payload.model,'local-translator');
+   return {status:200,data:{choices:[{message:{content:JSON.stringify({lines:request.lines.map(x=>'Перевод '+x.text)})}}]}};
  }});
- const config={provider:'deepseek',model:'deepseek-chat',key:'test-local-key',
-   endpoint:'https://api.deepseek.com/v1/chat/completions'};
+ a.window.Lampa.Storage.set('arx_tools_ai_enabled',true);
+ a.window.Lampa.Storage.set('arx_tools_ai_provider','custom');
+ a.window.Lampa.Storage.set('arx_tools_ai_custom_base','https://translate.example.org/v1');
+ a.window.Lampa.Storage.set('arx_tools_ai_custom_model','local-translator');
+ a.window.Lampa.Storage.set('arx_tools_ai_custom_key','custom-private-test-key');
+ const config=a.api.aiConfiguration();
  const result=await a.api.aiChatRequest(config,[{start:2,end:4,text:'Hello'}],'en','ru');
  assert.equal(result.ok,true);
- assert.deepEqual(plain(result.lines),['RU: Hello']);
+ assert.deepEqual(plain(result.lines),['Перевод Hello']);
  assert.equal(a.requests.length,1);
- assert.equal(a.requests[0].headers.Authorization,'Bearer test-local-key');
- assert.equal(a.requests[0].url,'https://api.deepseek.com/v1/chat/completions');
+ assert.equal(a.requests[0].headers.Authorization,'Bearer custom-private-test-key');
 });
-test('End-to-end direct AI translation preserves time ranges and bypasses subtitle backend',async()=>{
+test('Direct AI translation is opt-in and fully bypasses ARX subtitle server',async()=>{
  const a=run(false,{xhrResponse:(url,method,body)=>{
-   if(!url.includes('api.deepseek.com'))return {status:404,data:{}};
+   if(!url.includes('openrouter.ai'))return {status:404,data:{}};
    const packet=JSON.parse(body),request=JSON.parse(packet.messages[1].content);
    return {status:200,data:{choices:[{message:{content:JSON.stringify({
     lines:request.lines.map(x=>'Перевод '+x.text)
    })}}]}};
  }});
- a.window.Lampa.Storage.set('arx_tools_ai_key_deepseek','not-a-real-key');
+ a.window.Lampa.Storage.set('arx_tools_ai_key_openrouter','not-a-real-key');
  a.window.Lampa.Storage.set('arx_tools_subtitle_api','https://backend-unused.invalid');
  a.handlers.start({url:'https://example.org/video.mp4',card:{id:22,imdb_id:'tt0903747'}});
  a.api.subtitleUseCues([{start:1,end:3,text:'Hello'},{start:4,end:6,text:'World'}],
    {lang:'eng',title:'English'});
+ a.api.subtitleTranslate();
+ assert.equal(a.requests.filter(x=>x.url.includes('/chat/completions')).length,0);
+ a.window.Lampa.Storage.set('arx_tools_ai_enabled',true);
  a.api.subtitleTranslate();
  for(let i=0;i<20;i++)await Promise.resolve();
  assert.equal(a.requests.filter(x=>x.url.includes('/chat/completions')).length,1);
@@ -538,7 +548,6 @@ test('End-to-end direct AI translation preserves time ranges and bypasses subtit
  a.video.events.timeupdate({type:'timeupdate'});
  assert.equal(panelNodes[0].textContent,'Перевод Hello');
 });
-
 test('OpenRouter direct chat call uses configured provider URL and API key',async()=>{
  const a=run(false,{xhrResponse:(url,method,body)=>{
    assert.equal(url,'https://openrouter.ai/api/v1/chat/completions');
@@ -546,6 +555,7 @@ test('OpenRouter direct chat call uses configured provider URL and API key',asyn
    assert.equal(data.model,'google/gemini-2.5-flash');
    return {status:200,data:{choices:[{message:{content:'{"lines":["Это проверка"]}'}}]}};
  }});
+ a.window.Lampa.Storage.set('arx_tools_ai_enabled',true);
  const config={provider:'openrouter',model:'google/gemini-2.5-flash',
    key:'test-key-openrouter-only',endpoint:'https://openrouter.ai/api/v1/chat/completions'};
  const response=await a.api.aiChatRequest(config,[{start:5,end:7,text:'This is a test'}],'en','ru');
@@ -555,8 +565,9 @@ test('OpenRouter direct chat call uses configured provider URL and API key',asyn
 });
 test('API 401 does not expose secrets in error messages or retry automatically',async()=>{
  const a=run(false,{xhrResponse:()=>({status:401,data:{error:{message:'invalid credential'}}})});
- const config={provider:'deepseek',model:'deepseek-chat',key:'very-private-test-key',
-   endpoint:'https://api.deepseek.com/v1/chat/completions'};
+ a.window.Lampa.Storage.set('arx_tools_ai_enabled',true);
+ const config={provider:'custom',model:'model',key:'very-private-test-key',
+   endpoint:'https://translate.example.org/v1/chat/completions'};
  const response=await a.api.aiChatRequest(config,[{start:5,end:6,text:'Hello'}],'en','ru');
  assert.equal(response.ok,false);
  assert.equal(response.status,401);
@@ -636,6 +647,7 @@ test('OpenRouter Auto Router chat body uses documented model slug, without chang
  a.window.Lampa.Storage.set('arx_tools_ai_provider','openrouter');
  a.window.Lampa.Storage.set('arx_tools_ai_openrouter_free',false);
  a.window.Lampa.Storage.set('arx_tools_ai_key_openrouter','test-key');
+ a.window.Lampa.Storage.set('arx_tools_ai_enabled',true);
  const config=a.api.aiConfiguration();
  const result=await a.api.aiChatRequest(config,[{start:1,end:4,text:'Hello'}],'en','ru');
  assert.equal(result.ok,true);
@@ -826,4 +838,56 @@ test('D-pad OK still activates text skip and no internal reliability label appea
  assert.ok(!btn.textContent.includes('проверить'));
  btn['hover:enter']();
  assert.equal(a.video.currentTime,95);
+});
+
+test('AI provider settings are hidden unless AI is deliberately enabled',()=>{
+ const a=run(false),params=a.settings.filter(x=>x.param);
+ const main=params.find(x=>x.param.name==='arx_tools_ai_enabled');
+ assert.ok(main);assert.equal(main.param.default,false);assert.equal(main.param.type,'trigger');
+ const provider=params.find(x=>x.param.name==='arx_tools_ai_provider');
+ assert.equal(provider.param.default,'openrouter');
+ assert.equal(typeof provider.onRender,'function');
+ const names=params.map(x=>x.param.name);
+ assert.equal(names.some(n=>n.includes('ai_key_deepseek')),false);
+ assert.equal(names.some(n=>n.includes('ai_model_deepseek')),false);
+ for(const p of ['ai_custom_base','ai_custom_model','ai_custom_key','ai_key_openrouter']){
+   assert.equal(typeof params.find(x=>x.param.name==='arx_tools_'+p).onRender,'function');
+ }
+});
+test('AI disabled prevents even direct HTTP calls with saved keys',async()=>{
+ const a=run(false);
+ const cfg={provider:'custom',endpoint:'https://translate.example.org/v1/chat/completions',
+   model:'test-model',key:'private-key'};
+ const outcome=await a.api.aiChatRequest(cfg,[{start:0,end:1,text:'Hello'}],'en','ru');
+ assert.equal(outcome.ok,false);assert.equal(a.requests.length,0);
+});
+test('Ready-made subtitle search works with AI disabled, never sends key',async()=>{
+ const a=run(false,{xhrResponse:(url)=>{
+   if(url.includes('opensubtitles-v3.strem.io'))return {status:200,data:{subtitles:[]}};
+   if(url.includes('rest.opensubtitles.org'))return {status:200,data:[]};
+   return {status:404,data:null};
+ }});
+ a.window.Lampa.Storage.set('arx_tools_ai_custom_key','user-secret');
+ a.handlers.start({url:'https://example.org/video.mkv',card:{id:22,imdb_id:'tt0903747'}});
+ a.api.subtitleFind('rus');
+ for(let i=0;i<20;i++)await Promise.resolve();
+ assert.ok(a.requests.some(x=>x.url.includes('opensubtitles-v3.strem.io')));
+ assert.equal(a.requests.filter(x=>x.headers.Authorization).length,0);
+ assert.equal(a.requests.some(x=>JSON.stringify(x).includes('user-secret')),false);
+});
+test('Undo expires after three seconds for auto-skip and five for manual skip',()=>{
+ const a=run(false);
+ a.window.Lampa.Storage.set('arx_tools_auto',true);
+ a.handlers.start({url:'https://example.org/video.mkv',card:{imdb_id:'tt1234567'},
+   season:1,episode:1,segments:{skip:[{start:60,end:95}]}});
+ a.video.currentTime=61;a.video.events.timeupdate({type:'timeupdate'});
+ assert.ok(a.timeouts.some(t=>t.delay===3000),'Auto skip must expire after 3s');
+ a.handlers.destroy();
+ const b=run(false);
+ b.handlers.start({url:'https://example.org/video.mkv',card:{imdb_id:'tt1234567'},
+   season:1,episode:1,segments:{skip:[{start:60,end:95}]}});
+ b.video.currentTime=61;b.video.events.timeupdate({type:'timeupdate'});
+ const capsule=b.children.find(x=>(x.className||'').includes('arx-tools-capsule'));
+ capsule.children.find(x=>(x.className||'').includes('arx-tools-skip selector')).click();
+ assert.ok(b.timeouts.some(t=>t.delay===5000),'Manual skip must expire after 5s');
 });
