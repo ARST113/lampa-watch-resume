@@ -765,3 +765,38 @@ test('ARX SVG menu glyph inherits native Lampa focus color',()=>{
   assert.ok(css.includes('pointer-events:none;color:inherit'));
   assert.ok(css.includes('.arx-tools-panel-entry.focus,.arx-tools-panel-entry:focus{background:#fff!important;color:#000!important'));
 });
+
+test('Untrusted credits have a clean manual-skip label but do not auto-skip',async()=>{
+ const a=run(false,{xhrResponse:(url)=>{
+   if(url.includes('skipdb.tv'))return {status:200,data:{segments:{
+     outro:{start_ms:160000,end_ms:280000,confidence:0.65,match:'exact'}
+   }}};
+   return {status:404,data:null};
+ }});
+ a.window.Lampa.Storage.set('arx_tools_auto',true);
+ a.handlers.start({url:'https://example.org/S01E01.mp4',
+   card:{id:22,imdb_id:'tt1234567'},season:1,episode:1});
+ for(let i=0;i<18;i++)await Promise.resolve();
+ a.video.currentTime=178;
+ a.video.events.timeupdate({type:'timeupdate'});
+ const capsule=a.children.find(x=>(x.className||'').split(' ').includes('arx-tools-capsule'));
+ const skip=capsule.children.find(x=>(x.className||'').split(' ').includes('arx-tools-skip'));
+ assert.equal(skip.style.display,'flex');
+ assert.equal(skip.title,'Пропустить: Титры (01:42)');
+ assert.equal(skip.title.includes('проверить'),false);
+ assert.equal(a.video.currentTime,178,'Untrusted credits must remain manual even with auto-skip enabled');
+ skip.click();
+ assert.equal(a.video.currentTime,280,'User may still click to skip untrusted credits');
+});
+test('Trusted skip title is concise without internal reliability text',()=>{
+ const a=run(false);
+ a.handlers.start({url:'https://example.org/S01E01.mp4',
+   card:{id:22,imdb_id:'tt1234567'},season:1,episode:1,
+   segments:{skip:[{start:60,end:95}]}});
+ a.video.currentTime=65;
+ a.video.events.timeupdate({type:'timeupdate'});
+ const capsule=a.children.find(x=>(x.className||'').split(' ').includes('arx-tools-capsule'));
+ const skip=capsule.children.find(x=>(x.className||'').split(' ').includes('arx-tools-skip'));
+ assert.equal(skip.title,'Пропустить: Заставка (00:30)');
+ assert.equal(skip.title.includes('проверить'),false);
+});
