@@ -1,0 +1,28 @@
+name: ARX direct AI browser CORS diagnostics
+on:
+  push:
+    paths:
+      - '.github/workflows/arx-ai-cors.yml'
+  workflow_dispatch:
+jobs:
+  preflight:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check browser preflight without API keys
+        shell: bash
+        run: |
+          for provider in deepseek openrouter; do
+            if [ "$provider" = deepseek ]; then
+              target="https://api.deepseek.com/v1/chat/completions"
+            else
+              target="https://openrouter.ai/api/v1/chat/completions"
+            fi
+            echo "===== $provider ====="
+            curl --max-time 12 -sS -D /tmp/arx-cors.headers -o /dev/null \
+              -X OPTIONS \
+              -H 'Origin: https://lampa.mx' \
+              -H 'Access-Control-Request-Method: POST' \
+              -H 'Access-Control-Request-Headers: authorization,content-type' \
+              "$target" || true
+            grep -iE '^HTTP/|^access-control-allow-|^vary:|^server:' /tmp/arx-cors.headers || true
+          done
