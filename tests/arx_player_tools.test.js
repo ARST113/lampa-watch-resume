@@ -402,3 +402,54 @@ test('Subtitle file selection first downloads SRT directly, even with configured
  assert.equal(a.requests.filter(x=>x.url.includes('subs5.strem.io')).length,1);
  assert.equal(a.requests.filter(x=>x.url.includes('subs.example.org')).length,0);
 });
+
+test('Lampa SettingsApi renders ARX text inputs without undefined Params.values',()=>{
+ const a=run(false);
+ // Emulate the exact Param registration and update expressions from
+ // lampa-source/src/interaction/settings/api.js and params.js:
+ const values={},defaults={};
+ for(const item of a.settings){
+   if(!item.param)continue;
+   const p=item.param;
+   if(p.type==='trigger'){
+     values[p.name]={'true':'Yes','false':'No'};defaults[p.name]=p.default;
+   }
+   if(p.type==='select'||p.type==='input'){
+     values[p.name]=p.values;defaults[p.name]=p.default;
+   }
+ }
+ const inputs=a.settings.filter(x=>x.param?.type==='input');
+ assert.deepEqual(inputs.map(x=>x.param.name).sort(),
+   ['arx_tools_subtitle_api','arx_tools_subtitle_client_token']);
+ for(const input of inputs){
+   const name=input.param.name,key='';
+   // This previously raised: Cannot read properties of undefined (reading '').
+   assert.doesNotThrow(()=>{
+     const val=typeof values[name]==='string'?key:
+       values[name][key]||values[name][defaults[name]];
+     assert.equal(val,'');
+   });
+   assert.equal(typeof input.param.values,'string');
+ }
+});
+test('All ARX settings resolve via Lampa Params.update for defaults and stored choices',()=>{
+ const a=run(false);
+ const values={},defaults={};
+ for(const item of a.settings){
+   if(!item.param)continue;
+   const p=item.param;
+   if(p.type==='trigger'){values[p.name]={'true':'Yes','false':'No'};defaults[p.name]=p.default;}
+   else if(p.type==='select'||p.type==='input'){values[p.name]=p.values;defaults[p.name]=p.default;}
+ }
+ for(const item of a.settings){
+   if(!item.param)continue;
+   const {name,type}=item.param;
+   assert.doesNotThrow(()=>{
+     const key=a.window.Lampa.Storage.get(name,String(defaults[name]));
+     const val=typeof values[name]==='string'?key:
+       values[name][key]||values[name][defaults[name]];
+     if(type==='input')assert.equal(typeof val,'string');
+     else assert.ok(val!==undefined,'unset display value for '+name);
+   },name);
+ }
+});
