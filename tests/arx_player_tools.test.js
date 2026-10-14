@@ -218,8 +218,8 @@ test('Manual skip control seeks to segment end and undo restores original timest
     card:{id:22,imdb_id:'tt1234567'},segments:{skip:[{start:60,end:95}]}});
   a.video.currentTime=67;
   a.video.events.timeupdate({type:'timeupdate'});
-  const skip=a.children.find(x=>x.className==='arx-tools-skip');
-  const undo=a.children.find(x=>x.className==='arx-tools-undo');
+  const skip=a.children.find(x=>(x.className||'').split(' ').includes('arx-tools-skip'));
+  const undo=a.children.find(x=>(x.className||'').split(' ').includes('arx-tools-undo'));
   assert.equal(skip.style.display,'block');
   skip.click();
   assert.equal(a.video.currentTime,95);
