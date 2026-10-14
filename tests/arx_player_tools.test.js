@@ -5,7 +5,7 @@ const {test}=require('node:test');
 function run(exportsOnly=true, options={}) {
   let src=fs.readFileSync(path.join(__dirname,'..','arx_player_tools.js'),'utf8');
   if(exportsOnly) src=src.replace(/\}\)\(\);\s*$/,"window.__test={metadata,mapType,clock,put,parseSkipDB,parseIntroDB,parseTheIntroDB,parseAniSkip,parseIntroHater,fromLaunch,combine,fingerprint,appendManual,readManual,readChapters,readSubtitleSuggestions,remoteRequests,playerStart,playerVideo,tick};})();");
-  const handlers={},store={},settings=[],children=[];
+  const handlers={},store={},settings=[],children=[],tvNodes=[];
   const video={
     duration:2820,currentTime:0,paused:false,volume:1,playbackRate:1,videoWidth:1920,videoHeight:1080,
     events:{},addEventListener(k,f){this.events[k]=f;},removeEventListener(k){delete this.events[k];},
@@ -14,8 +14,33 @@ function run(exportsOnly=true, options={}) {
   const div={
     appendChild(el){children.push(el);el.parentNode=this;return el;},
     removeChild(el){let idx=children.indexOf(el);if(idx>=0)children.splice(idx,1);el.parentNode=null;},
+    querySelector(s){if(s==='.selector')return children.find(el=>(el.className||'').includes('selector'))||null;return null;},
     get firstChild(){return children[0]||null;}
   };
+  const panelRight={children:[],appendChild(el){this.children.push(el);el.parentNode=this;return el;},
+    querySelector(s){return this.children.find(x=>(x.className||'').includes(s.replace('.','')))||null;}};
+  const activeTV={name:'player',selected:null,items:[],controllers:{},
+    add(name,ctrl){this.controllers[name]=ctrl;},
+    enabled(){return {name:this.name};},
+    toggle(name){this.name=name;const ctrl=this.controllers[name];if(ctrl&&ctrl.toggle)ctrl.toggle();},
+    collectionSet(el){this.collection=el;},
+    collectionFocus(el){this.selected=el;}
+  };
+  const navigator={
+    move(dir){
+      const walk=(el)=>{let acc=[];if(!el)return acc;
+        if((el.className||'').split(' ').includes('selector'))acc.push(el);
+        (el.children||[]).forEach(x=>{acc=acc.concat(walk(x));});return acc;};
+      const controls=walk(activeTV.collection);
+      if(!controls.length)return;
+      let i=controls.indexOf(activeTV.selected);
+      let delta=dir==='up'||dir==='left'?-1:1;
+      activeTV.selected=controls[(i+delta+controls.length)%controls.length];
+    }
+  };
+  activeTV.add('player_panel',{toggle(){activeTV.collectionSet(panelRight);activeTV.collectionFocus(panelRight.children[0]||null);}});
+  activeTV.add('player',{toggle(){activeTV.selected=null;}});
+
   const fakeDoc={
     readyState:exportsOnly?'loading':'complete',head:div,body:div,
     createElement(t){return {tagName:t,style:{},textContent:'',parentNode:null,children:[],
@@ -23,9 +48,20 @@ function run(exportsOnly=true, options={}) {
       appendChild(x){this.children.push(x);x.parentNode=this;return x;},
       removeChild(x){this.children.splice(this.children.indexOf(x),1);x.parentNode=null;},
       get firstChild(){return this.children[0]||null;},
-      querySelector(){return null;}
+      querySelector(sel){
+        if(sel==='.selector')return this.children.find(x=>(x.className||'').split(' ').includes('selector'))||null;
+        return null;
+      },
+      querySelectorAll(sel){
+        if(sel!=='.selector')return [];
+        const walk=(e)=>{let a=[];(e.children||[]).forEach(x=>{
+          if((x.className||'').split(' ').includes('selector'))a.push(x);
+          a=a.concat(walk(x));
+        });return a;};return walk(this);
+      }
     };},
-    querySelector(s){return s==='.player'?div:null;},
+    querySelector(s){if(s==='.player')return div;
+      if(s==='.player-panel__right')return panelRight;return null;},
     getElementById(){return null;},addEventListener(){}
   };
   const fakeLampa={
@@ -35,9 +71,10 @@ function run(exportsOnly=true, options={}) {
     Player:{listener:{follow(k,f){handlers[k]=f;}}},
     Listener:{follow(k,f){handlers['app:'+k]=f;}},
     SettingsApi:{addComponent(x){settings.push(x);},addParam(x){settings.push(x);}},
-    Noty:{show(){}}
+    Noty:{show(){}},
+    Controller:activeTV,Navigator:navigator
   };
-  const window={Lampa:fakeLampa};
+  const window={Lampa:fakeLampa,Navigator:navigator,addEventListener(k,fn){handlers['window:'+k]=fn;}};
   function XHR(){
     this.readyState=0;this.status=0;this.responseText='';
   }
@@ -51,7 +88,8 @@ function run(exportsOnly=true, options={}) {
     Date,Math,isFinite,Number,Array,Object,JSON,parseFloat,parseInt,Promise,encodeURIComponent};
   vm.runInNewContext(src,context);
   if(!exportsOnly && handlers['app:app'])handlers['app:app']({type:'ready'});
-  return {api:window.__test,handlers,settings,store,video,children,window,document:fakeDoc};
+  return {api:window.__test,handlers,settings,store,video,children,window,document:fakeDoc,
+    controller:activeTV,panelRight,navigator};
 }
 function plain(x){return JSON.parse(JSON.stringify(x));}
 const e=run(),f=e.api;
@@ -215,4 +253,49 @@ test('Autoskipping does not attempt to seek outside available media range',()=>{
   a.video.currentTime=67;
   a.video.events.timeupdate({type:'timeupdate'});
   assert.equal(a.video.currentTime,67);
+});
+
+test('TV: ARX entry is inserted as a native Lampa selector in player panel',()=>{
+  const a=run(false);
+  a.handlers.start({url:'https://example.org/video.mkv',card:{id:22,imdb_id:'tt1234567'}});
+  const arx=a.panelRight.children.find(x=>(x.className||'').includes('arx-tools-panel-entry'));
+  assert.ok(arx);
+  assert.ok(arx.className.includes('selector'));
+  assert.equal(typeof arx['hover:enter'],'function');
+});
+test('TV: Enter via native hover:enter opens ARX controller, Back restores player panel',()=>{
+  const a=run(false);
+  a.handlers.start({url:'https://example.org/movie.mkv',card:{id:22,imdb_id:'tt1234567'}});
+  a.controller.toggle('player_panel');
+  a.controller.selected['hover:enter']();
+  assert.equal(a.controller.enabled().name,'arx_tools_menu');
+  assert.ok(a.controller.selected);
+  assert.ok((a.controller.selected.className||'').includes('selector'));
+  const first=a.controller.selected;
+  a.controller.controllers.arx_tools_menu.down();
+  assert.notEqual(a.controller.selected,first);
+  a.controller.controllers.arx_tools_menu.back();
+  assert.equal(a.controller.enabled().name,'player_panel');
+});
+test('TV: skip during playback automatically focuses a selector and Enter seeks',()=>{
+  const a=run(false);
+  a.handlers.start({url:'https://example.org/s01e01.mkv',card:{id:22,imdb_id:'tt1234567'},
+    season:1,episode:1,segments:{skip:[{start:60,end:95}]}});
+  a.video.currentTime=66;
+  a.video.events.timeupdate({type:'timeupdate'});
+  assert.equal(a.controller.enabled().name,'arx_tools_skip');
+  assert.ok(a.controller.selected.className.includes('selector'));
+  a.controller.selected['hover:enter']();
+  assert.equal(a.video.currentTime,95);
+  assert.equal(a.controller.enabled().name,'player');
+});
+test('TV: native skip button has priority while already visible',()=>{
+  const a=run(false);
+  const native={classList:{contains(x){return x==='player-skip'?true:false;}}};
+  const original=a.document.querySelector;
+  a.document.querySelector=function(s){if(s==='.player-skip')return native;return original.call(this,s);};
+  a.handlers.start({url:'https://example.org/s01e01.mkv',card:{id:22,imdb_id:'tt1234567'},
+    season:1,episode:1,segments:{skip:[{start:60,end:95}]}});
+  a.video.currentTime=66;a.video.events.timeupdate({type:'timeupdate'});
+  assert.equal(a.controller.enabled().name,'player');
 });
