@@ -1,4 +1,4 @@
-/* ARX Player Tools 0.5.0 — Lampa internal HTML5 player
+/* ARX Player Tools 0.5.1 — Lampa internal HTML5 player
  * Public metadata only; no torrent URLs, credentials or watch history transmitted.
  * Supports skip services, episode-specific corrections, remote navigation,
  * HTML5 text tracks, chapter cues, sleep timer and playback information.
@@ -7,7 +7,7 @@
   'use strict';
   if (window.__ARX_PLAYER_TOOLS__) return;
   window.__ARX_PLAYER_TOOLS__ = true;
-  var L = window.Lampa, VERSION = '0.5.0', NS = 'arx_tools_';
+  var L = window.Lampa, VERSION = '0.5.1', NS = 'arx_tools_';
   var TYPES = ['intro','recap','credits','preview','ad','postcredits'];
   var NAMES = {intro:'Заставка',recap:'Рекап',credits:'Титры',preview:'Анонс',ad:'Реклама',postcredits:'Сцена после титров'};
   var mounted = false, current = null, playerToken = 0, control = {}, attachedVideo = null, cacheTimer = null;
@@ -20,7 +20,13 @@
   function json(x) {if(typeof x!=='string')return x;try{return JSON.parse(x);}catch(e){return null;}}
   function get(k,d) {try{var v=L.Storage.get(NS+k,d);return v===null||typeof v==='undefined'?d:v;}catch(e){return d;}}
   function set(k,v) {try{L.Storage.set(NS+k,v);}catch(e){log('Storage write failed',k);}}
-  function on(k,d) {var v=get(k,d);return !(v===false||v==='false'||v==='0'||v===0||v===null);}
+  function on(k,d) {
+    var v=get(k,d);
+    // Lampa Storage.get(name, false) can normalize an unset/false
+    // value to ''. Treat this as OFF, never as an enabled setting.
+    return !(v===false||v==='false'||v==='0'||v===0||v===null||
+      v===''||typeof v==='undefined'||v==='no');
+  }
   function notice(s) {try{if(L.Noty && L.Noty.show)L.Noty.show(s);else log(s);}catch(e){log(s);}}
   function playerVideo() {try{return L.PlayerVideo&&L.PlayerVideo.video&&L.PlayerVideo.video();}catch(e){return null;}}
   function duration() {var v=playerVideo(),n=v?number(v.duration):NaN;return n>0&&isFinite(n)?n:0;}
@@ -362,7 +368,7 @@
   function css() {
     if(styleReady || document.getElementById('arx-tools-style')){styleReady=true;return;}
     var e=make('style');e.id='arx-tools-style';
-    e.textContent='[data-name="arx_tools_ai_key_deepseek"] .settings-param__value,[data-name="arx_tools_ai_key_openrouter"] .settings-param__value{-webkit-text-security:disc}.arx-tools-subtitles{position:absolute;bottom:12%;left:6%;width:88%;text-align:center;color:#fff;font-size:1.4em;text-shadow:0 1px 5px #000,1px 2px 8px #000;pointer-events:none;white-space:pre-line;z-index:8520}.arx-tools-quick{display:none!important}.arx-tools-panel-entry{display:inline-flex;padding:8px 16px;min-height:36px;border:1px solid #d4dae2;border-radius:8px;background:#25313d;color:white}.arx-tools-panel-entry.focus,.arx-tools-panel-entry:focus,.arx-tools-panel button.focus,.arx-tools-skip.focus{outline:3px solid white}.arx-tools-quick,.arx-tools-skip,.arx-tools-undo,.arx-tools-panel button{background:rgba(16,24,32,.93);color:#fff;border:1px solid #ffffff55;border-radius:10px;padding:9px 13px;font:inherit;cursor:pointer}.arx-tools-quick{position:absolute;right:2%;bottom:11%;z-index:8503;font-size:.86em}.arx-tools-skip{position:absolute;right:2%;bottom:21%;z-index:8503}.arx-tools-undo{position:absolute;right:2%;bottom:32%;z-index:8503}.arx-tools-quick:focus,.arx-tools-skip:focus,.arx-tools-undo:focus,.arx-tools-panel button:focus{outline:3px solid #fff}.arx-tools-panel{position:absolute;right:2%;bottom:20%;max-height:65%;width:min(560px,94%);box-sizing:border-box;overflow:auto;background:rgba(15,20,29,.96);color:#fff;padding:15px;border-radius:12px;z-index:8510;box-shadow:0 4px 20px #000a}.arx-tools-panel-title{font-weight:bold;font-size:1.1em;margin-bottom:8px}.arx-tools-panel-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}.arx-tools-panel button{font-size:.9em}.arx-tools-info{position:absolute;right:2%;top:6%;color:#fff;background:#000a;padding:7px 12px;border-radius:8px;font-size:.80em;z-index:8501;pointer-events:none;white-space:pre-line}.arx-tools-dual{position:absolute;bottom:8%;left:5%;width:90%;z-index:8502;color:#f5e2a4;text-align:center;font-size:1.05em;text-shadow:1px 2px 4px #000,0 0 3px #000;pointer-events:none}.arx-tools-markers{position:absolute;inset:0;pointer-events:none;z-index:5}.arx-tools-marker{position:absolute;top:0;bottom:0;width:3px;opacity:.8;background:#e4d788;pointer-events:none}.arx-tools-marker[data-type="credits"]{background:#67c0e5}.arx-tools-marker[data-type="recap"]{background:#d9a0e8}.arx-tools-marker[data-type="ad"]{background:#df8888}.arx-tools-legend{font-size:.78em;opacity:.84;margin:4px 0}';
+    e.textContent='.arx-ai-auto-switch .settings-param__value{font-size:0!important;color:transparent!important;display:inline-block;position:relative;vertical-align:middle;width:3.6rem;min-width:3.6rem;height:1.9rem;border-radius:999px;background:#525963;transition:background .15s ease}.arx-ai-auto-switch .settings-param__value:after{content:"";display:block;position:absolute;top:.24rem;left:.24rem;width:1.42rem;height:1.42rem;border-radius:50%;background:#fff;transition:left .15s ease}.arx-ai-auto-switch.arx-auto-active .settings-param__value{background:#2f9b72}.arx-ai-auto-switch.arx-auto-active .settings-param__value:after{left:1.95rem}.arx-ai-manual-option.hide{display:none!important}[data-name="arx_tools_ai_key_deepseek"] .settings-param__value,[data-name="arx_tools_ai_key_openrouter"] .settings-param__value{-webkit-text-security:disc}.arx-tools-subtitles{position:absolute;bottom:12%;left:6%;width:88%;text-align:center;color:#fff;font-size:1.4em;text-shadow:0 1px 5px #000,1px 2px 8px #000;pointer-events:none;white-space:pre-line;z-index:8520}.arx-tools-quick{display:none!important}.arx-tools-panel-entry{display:inline-flex;padding:8px 16px;min-height:36px;border:1px solid #d4dae2;border-radius:8px;background:#25313d;color:white}.arx-tools-panel-entry.focus,.arx-tools-panel-entry:focus,.arx-tools-panel button.focus,.arx-tools-skip.focus{outline:3px solid white}.arx-tools-quick,.arx-tools-skip,.arx-tools-undo,.arx-tools-panel button{background:rgba(16,24,32,.93);color:#fff;border:1px solid #ffffff55;border-radius:10px;padding:9px 13px;font:inherit;cursor:pointer}.arx-tools-quick{position:absolute;right:2%;bottom:11%;z-index:8503;font-size:.86em}.arx-tools-skip{position:absolute;right:2%;bottom:21%;z-index:8503}.arx-tools-undo{position:absolute;right:2%;bottom:32%;z-index:8503}.arx-tools-quick:focus,.arx-tools-skip:focus,.arx-tools-undo:focus,.arx-tools-panel button:focus{outline:3px solid #fff}.arx-tools-panel{position:absolute;right:2%;bottom:20%;max-height:65%;width:min(560px,94%);box-sizing:border-box;overflow:auto;background:rgba(15,20,29,.96);color:#fff;padding:15px;border-radius:12px;z-index:8510;box-shadow:0 4px 20px #000a}.arx-tools-panel-title{font-weight:bold;font-size:1.1em;margin-bottom:8px}.arx-tools-panel-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}.arx-tools-panel button{font-size:.9em}.arx-tools-info{position:absolute;right:2%;top:6%;color:#fff;background:#000a;padding:7px 12px;border-radius:8px;font-size:.80em;z-index:8501;pointer-events:none;white-space:pre-line}.arx-tools-dual{position:absolute;bottom:8%;left:5%;width:90%;z-index:8502;color:#f5e2a4;text-align:center;font-size:1.05em;text-shadow:1px 2px 4px #000,0 0 3px #000;pointer-events:none}.arx-tools-markers{position:absolute;inset:0;pointer-events:none;z-index:5}.arx-tools-marker{position:absolute;top:0;bottom:0;width:3px;opacity:.8;background:#e4d788;pointer-events:none}.arx-tools-marker[data-type="credits"]{background:#67c0e5}.arx-tools-marker[data-type="recap"]{background:#d9a0e8}.arx-tools-marker[data-type="ad"]{background:#df8888}.arx-tools-legend{font-size:.78em;opacity:.84;margin:4px 0}';
     document.head.appendChild(e);styleReady=true;
   }
   function placeRoot(){return document.querySelector('.player')||document.body;}
@@ -515,11 +521,44 @@
   }
   function hideSkip(){if(control.skip)control.skip.style.display='none';if(current)current.hover=null;
     if(tvControllerName()==='arx_tools_skip'&&L.Controller&&L.Controller.toggle)L.Controller.toggle('player');}
+  // The small technical overlay follows the stock playback controls
+  // instead of sticking to the screen after they disappear.
+  var panelObserver=null,panelNode=null;
+  function playerPanelVisible(){
+    var el=document.querySelector&&document.querySelector('.player-panel');
+    if(!el)return false;
+    return !!(el.classList&&el.classList.contains('panel--visible'));
+  }
+  function hidePlayerInfo(){
+    if(control.info)control.info.style.display='none';
+  }
+  function watchPlayerPanel(){
+    if(!current)return;
+    var el=document.querySelector&&document.querySelector('.player-panel');
+    if(!el){hidePlayerInfo();return;}
+    if(panelNode===el)return;
+    unwatchPlayerPanel();
+    panelNode=el;
+    if(window.MutationObserver){
+      panelObserver=new window.MutationObserver(function(){
+        if(!playerPanelVisible())hidePlayerInfo();
+        else if(current)tick();
+      });
+      panelObserver.observe(el,{attributes:true,attributeFilter:['class']});
+    }
+    if(!playerPanelVisible())hidePlayerInfo();
+  }
+  function unwatchPlayerPanel(){
+    if(panelObserver){try{panelObserver.disconnect();}catch(e){}}
+    panelObserver=null;panelNode=null;
+    hidePlayerInfo();
+  }
   function tick(){
     if(!current)return;
     var v=playerVideo();if(!v)return;
     if(attachedVideo!==v)bindVideo();
     mountControls();
+    watchPlayerPanel();
     var now=number(v.currentTime);
     if(isFinite(now)&&on('skip',true)&&!window.__skipIntroLoaded){
       var found=null;
@@ -544,7 +583,7 @@
         }
       }else hideSkip();
     }else hideSkip();
-    if(on('info',false)&&isFinite(now)&&duration()>0){
+    if(on('info',false)&&playerPanelVisible()&&isFinite(now)&&duration()>0){
       var remain=Math.max(0,(duration()-now)/(number(v.playbackRate)>0?v.playbackRate:1)),end=new Date(Date.now()+remain*1000);
       var text='Осталось '+fmt(remain)+' · До '+('0'+end.getHours()).slice(-2)+':'+('0'+end.getMinutes()).slice(-2);
       if(on('stats',false)){
@@ -684,6 +723,7 @@
     playerToken++;
     if(cacheTimer)clearTimeout(cacheTimer);cacheTimer=null;
     cancelSleep();restoreTrack();subtitleDisable();hideSkip();clearUndo();closePanel();
+    unwatchPlayerPanel();
     if(current && current.markerNode && current.markerNode.parentNode)current.markerNode.parentNode.removeChild(current.markerNode);
     current=null;
     if(control.info)control.info.style.display='none';
@@ -712,7 +752,7 @@
     if(on('skip',true)&&!window.__skipIntroLoaded)refreshRemote(false);
     tick();
   }
-  function setupItem(key,type,name,def,values){
+  function setupItem(key,type,name,def,values,options){
     var param={name:NS+key,type:type,default:def};
     // Lampa.SettingsApi calls Params.select(name, param.values, default)
     // for BOTH select and input. Params.update reads values[name][key]
@@ -720,7 +760,10 @@
     // the entire settings screen ("Cannot read properties of undefined").
     if(type==='input') param.values='';
     else if(typeof values!=='undefined') param.values=values;
-    L.SettingsApi.addParam({component:'arx_player_tools',param:param,field:{name:name}});
+    var spec={component:'arx_player_tools',param:param,field:{name:name}};
+    if(options&&typeof options.onRender==='function')spec.onRender=options.onRender;
+    if(options&&typeof options.onChange==='function')spec.onChange=options.onChange;
+    L.SettingsApi.addParam(spec);
   }
 
   // ARX integrated subtitles: ready-made OpenSubtitles + optional private AI backend.
@@ -941,8 +984,13 @@
   function aiConfiguration(){
     var provider=String(get('ai_provider','deepseek'));
     if(provider!=='openrouter')provider='deepseek';
-    var model=String(get(provider==='deepseek'?'ai_model_deepseek':'ai_model_openrouter',
-      provider==='deepseek'?'deepseek-chat':'google/gemini-2.5-flash')||'').trim();
+    var model;
+    if(provider==='deepseek')model=String(get('ai_model_deepseek','deepseek-chat')||'').trim();
+    else if(on('ai_openrouter_auto',true))model='openrouter/auto';
+    else{
+      var chosen=String(get('ai_openrouter_manual_preset','custom')||'custom');
+      model=chosen==='custom'?String(get('ai_model_openrouter','google/gemini-2.5-flash')||'').trim():chosen;
+    }
     var key=String(get(provider==='deepseek'?'ai_key_deepseek':'ai_key_openrouter','')||'').trim();
     if(!/^[a-zA-Z0-9._/:+-]{1,120}$/.test(model))model='';
     return {provider:provider,model:model,key:key,
@@ -1118,7 +1166,9 @@
     setupItem('sub_suggestions','trigger','Подсказки по паузам в субтитрах (только ручной пропуск)',false);
     setupItem('quick','trigger','Кнопка ARX в штатной панели плеера',true);
     setupItem('red_key','trigger','Красная кнопка пульта: пропустить',false);
-    setupItem('info','trigger','Оставшееся время и время окончания',false);
+    setupItem('info','trigger','Оставшееся время и время окончания (только при открытой панели)',false,null,{
+      onChange:function(value){if(value===false||value==='false')hidePlayerInfo();}
+    });
     setupItem('stats','trigger','Информация о разрешении и буфере',false);
     setupItem('speed','select','Скорость при начале воспроизведения', '1',
       {'0.75':'0.75×','1':'1×','1.25':'1.25×','1.5':'1.5×','2':'2×'});
@@ -1132,7 +1182,42 @@
       {deepseek:'DeepSeek API',openrouter:'OpenRouter API'});
     setupItem('ai_model_deepseek','input','Модель DeepSeek', 'deepseek-chat');
     setupItem('ai_key_deepseek','input','Ключ DeepSeek API (хранится на устройстве)', '');
-    setupItem('ai_model_openrouter','input','Модель OpenRouter', 'google/gemini-2.5-flash');
+    setupItem('ai_openrouter_auto','trigger','OpenRouter: автоматический выбор модели',true,null,{
+      onRender:function(item){
+        item.addClass('arx-ai-auto-switch');
+        item.toggleClass('arx-auto-active',on('ai_openrouter_auto',true));
+        item.attr('role','switch');
+        item.attr('aria-checked',on('ai_openrouter_auto',true)?'true':'false');
+      },
+      onChange:function(value){
+        var active=value===true||value==='true';
+        try{
+          if(window.$){
+            var row=window.$('[data-name="arx_tools_ai_openrouter_auto"]');
+            row.toggleClass('arx-auto-active',active);
+            row.attr('aria-checked',active?'true':'false');
+            window.$('.arx-ai-manual-option').toggleClass('hide',active);
+          }
+        }catch(e){}
+      }
+    });
+    setupItem('ai_openrouter_manual_preset','select','OpenRouter: модель при ручном выборе','custom',{
+      custom:'Своя модель (указать ID ниже)',
+      'google/gemini-2.5-flash':'Google Gemini 2.5 Flash',
+      'openai/gpt-4.1-mini':'OpenAI GPT-4.1 mini',
+      'anthropic/claude-sonnet-4.5':'Anthropic Claude Sonnet 4.5'
+    },{
+      onRender:function(item){
+        item.addClass('arx-ai-manual-option');
+        item.toggleClass('hide',on('ai_openrouter_auto',true));
+      }
+    });
+    setupItem('ai_model_openrouter','input','OpenRouter: собственный ID модели', 'google/gemini-2.5-flash',null,{
+      onRender:function(item){
+        item.addClass('arx-ai-manual-option');
+        item.toggleClass('hide',on('ai_openrouter_auto',true));
+      }
+    });
     setupItem('ai_key_openrouter','input','Ключ OpenRouter API (хранится на устройстве)', '');
     setupItem('dualsubs','trigger','Вторые HTML5-субтитры (экспериментально)',false);
     setupItem('dual_lang','select','Язык вторых субтитров','en',{en:'Английский',ru:'Русский',es:'Испанский',de:'Немецкий',fr:'Французский'});
