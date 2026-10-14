@@ -1,6 +1,6 @@
 # ARX Subtitles Server
 
-Независимый backend для Lampa ARX Player Tools: поиск готовых субтитров (Stremio OpenSubtitles v3 + REST OpenSubtitles), скачивание SRT, ИИ-перевод через DeepSeek/OpenRouter, опрос статуса длительной задачи. Backend не связан с сервером OpenSubtitles RU стороннего автора. Node.js 22+, без npm-зависимостей.
+Необязательный backend для Lampa ARX Player Tools: ИИ-перевод через DeepSeek/OpenRouter и опрос статуса длительной задачи. В нём также есть резервные маршруты поиска и скачивания OpenSubtitles, но Lampa 0.4.1 сначала обращается к публичным источникам **напрямую**, без этого backend. Backend не связан с сервером OpenSubtitles RU стороннего автора. Node.js 22+, без npm-зависимостей.
 
 ## Локальный запуск
 
@@ -97,3 +97,7 @@ OpenRouter поддерживается через `AI_BASE_URL=https://openrout
 В **Settings → Secrets and variables → Actions** добавьте `ARX_SSH_HOST`, `ARX_SSH_USER`, `ARX_SSH_PORT` (если не 22), `ARX_SSH_PRIVATE_KEY` и `ARX_SSH_KNOWN_HOSTS` (проверенная, закреплённая публичная SSH-строка хоста). Приватный SSH-ключ нельзя вставлять в открытые issue или чат. Пользователь SSH должен иметь разрешение запускать `docker compose` без интерактивного `sudo`; лучше использовать отдельную учётную запись с минимально необходимыми правами. На сервере заранее создать `/opt/arx-subtitles/.env` с ключом модели и токеном клиента; workflow не загружает секреты из GitHub в файлы `.env`, не удаляет текущие настройки и не открывает порт 8091 наружу.
 
 Не запускайте workflow до того, как будете уверены, что SSH-ключ доверенный, VPS подготовлен и DNS/HTTPS reverse proxy настроены. После деплоя проверьте публичный `/health` и поиск в Lampa.
+
+### Поиск без сервера
+
+Наличие этого backend **не требуется** для готовых субтитров: ARX 0.4.1 использует Lampa JS → OpenSubtitles v3 / REST OpenSubtitles → SRT через Stremio CDN. Сервер выполняет ИИ-перевод и служит только резервным прокси, когда прямой поиск или скачивание блокируются. В настройках Lampa предусмотрен отдельный переключатель резервного прокси.
