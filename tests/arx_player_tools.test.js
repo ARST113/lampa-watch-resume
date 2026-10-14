@@ -891,3 +891,62 @@ test('Undo expires after three seconds for auto-skip and five for manual skip',(
  capsule.children.find(x=>(x.className||'').includes('arx-tools-skip selector')).click();
  assert.ok(b.timeouts.some(t=>t.delay===5000),'Manual skip must expire after 5s');
 });
+
+test('Custom OpenAI-compatible API can work without API key and without Authorization header',async()=>{
+ const a=run(false,{xhrResponse:(url,method,body)=>{
+   assert.equal(url,'https://home-ai.example.org/v1/chat/completions');
+   return {status:200,data:{choices:[{message:{content:'{"lines":["Переведено"]}'}}]}};
+ }});
+ a.window.Lampa.Storage.set('arx_tools_ai_enabled',true);
+ a.window.Lampa.Storage.set('arx_tools_ai_provider','custom');
+ a.window.Lampa.Storage.set('arx_tools_ai_custom_base','https://home-ai.example.org/v1');
+ a.window.Lampa.Storage.set('arx_tools_ai_custom_model','local-8b');
+ const response=await a.api.aiChatRequest(a.api.aiConfiguration(),[{start:1,end:2,text:'Translated'}],'en','ru');
+ assert.equal(response.ok,true);
+ assert.deepEqual(plain(response.lines),['Переведено']);
+ assert.equal(a.requests[0].headers.Authorization,undefined);
+});
+test('OpenAI-compatible API retries HTTP 400 once without unsupported response_format/temperature',async()=>{
+ let n=0;
+ const a=run(false,{xhrResponse:(url,method,body)=>{
+   const payload=JSON.parse(body);n++;
+   if(n===1){
+     assert.equal(payload.response_format.type,'json_object');
+     assert.equal(payload.temperature,0.15);
+     return {status:400,data:{error:'unsupported response_format'}};
+   }
+   assert.equal(payload.response_format,undefined);
+   assert.equal(payload.temperature,undefined);
+   return {status:200,data:{choices:[{message:{content:'{"lines":["Привет"]}'}}]}};
+ }});
+ a.window.Lampa.Storage.set('arx_tools_ai_enabled',true);
+ const config={provider:'custom',model:'lightweight-model',key:'',
+   endpoint:'https://openai-compatible.example.net/v1/chat/completions'};
+ const result=await a.api.aiChatRequest(config,[{start:0,end:1,text:'Hello'}],'en','ru');
+ assert.equal(result.ok,true);
+ assert.equal(n,2);
+ assert.equal(result.lines[0],'Привет');
+});
+test('AI settings registration does not expose deprecated dedicated DeepSeek settings',()=>{
+ const a=run(false),names=a.settings.filter(x=>x.param).map(x=>x.param.name);
+ assert.equal(names.some(name=>name.includes('deepseek')),false);
+ assert.ok(names.includes('arx_tools_ai_enabled'));
+ assert.ok(names.includes('arx_tools_ai_custom_base'));
+ assert.ok(names.includes('arx_tools_ai_custom_model'));
+ assert.ok(names.includes('arx_tools_ai_custom_key'));
+});
+test('Auto undo capsule is removed on the 3s timeout, manual on 5s timeout',()=>{
+ const a=run(false);
+ a.window.Lampa.Storage.set('arx_tools_auto',true);
+ a.handlers.start({url:'https://example.org/E01.mp4',card:{imdb_id:'tt1234567'},
+  season:1,episode:1,segments:{skip:[{start:60,end:95}]}});
+ a.video.currentTime=61;a.video.events.timeupdate({type:'timeupdate'});
+ const capsule=a.children.find(x=>(x.className||'').includes('arx-tools-capsule'));
+ const undo=capsule.children.find(x=>(x.className||'').includes('arx-tools-undo'));
+ assert.equal(undo.style.display,'block');
+ const timeout=a.timeouts.find(x=>x.delay===3000);
+ assert.ok(timeout);
+ timeout.fn();
+ assert.equal(undo.style.display,'none');
+ assert.equal(capsule.style.display,'none');
+});
