@@ -1,4 +1,4 @@
-/* ARX Player Tools 0.5.1 — Lampa internal HTML5 player
+/* ARX Player Tools 0.5.2 — Lampa internal HTML5 player
  * Public metadata only; no torrent URLs, credentials or watch history transmitted.
  * Supports skip services, episode-specific corrections, remote navigation,
  * HTML5 text tracks, chapter cues, sleep timer and playback information.
@@ -7,7 +7,7 @@
   'use strict';
   if (window.__ARX_PLAYER_TOOLS__) return;
   window.__ARX_PLAYER_TOOLS__ = true;
-  var L = window.Lampa, VERSION = '0.5.1', NS = 'arx_tools_';
+  var L = window.Lampa, VERSION = '0.5.2', NS = 'arx_tools_';
   var TYPES = ['intro','recap','credits','preview','ad','postcredits'];
   var NAMES = {intro:'Заставка',recap:'Рекап',credits:'Титры',preview:'Анонс',ad:'Реклама',postcredits:'Сцена после титров'};
   var mounted = false, current = null, playerToken = 0, control = {}, attachedVideo = null, cacheTimer = null;
@@ -368,7 +368,7 @@
   function css() {
     if(styleReady || document.getElementById('arx-tools-style')){styleReady=true;return;}
     var e=make('style');e.id='arx-tools-style';
-    e.textContent='.arx-ai-auto-switch .settings-param__value{font-size:0!important;color:transparent!important;display:inline-block;position:relative;vertical-align:middle;width:3.6rem;min-width:3.6rem;height:1.9rem;border-radius:999px;background:#525963;transition:background .15s ease}.arx-ai-auto-switch .settings-param__value:after{content:"";display:block;position:absolute;top:.24rem;left:.24rem;width:1.42rem;height:1.42rem;border-radius:50%;background:#fff;transition:left .15s ease}.arx-ai-auto-switch.arx-auto-active .settings-param__value{background:#2f9b72}.arx-ai-auto-switch.arx-auto-active .settings-param__value:after{left:1.95rem}.arx-ai-manual-option.hide{display:none!important}[data-name="arx_tools_ai_key_deepseek"] .settings-param__value,[data-name="arx_tools_ai_key_openrouter"] .settings-param__value{-webkit-text-security:disc}.arx-tools-subtitles{position:absolute;bottom:12%;left:6%;width:88%;text-align:center;color:#fff;font-size:1.4em;text-shadow:0 1px 5px #000,1px 2px 8px #000;pointer-events:none;white-space:pre-line;z-index:8520}.arx-tools-quick{display:none!important}.arx-tools-panel-entry{display:inline-flex;padding:8px 16px;min-height:36px;border:1px solid #d4dae2;border-radius:8px;background:#25313d;color:white}.arx-tools-panel-entry.focus,.arx-tools-panel-entry:focus,.arx-tools-panel button.focus,.arx-tools-skip.focus{outline:3px solid white}.arx-tools-quick,.arx-tools-skip,.arx-tools-undo,.arx-tools-panel button{background:rgba(16,24,32,.93);color:#fff;border:1px solid #ffffff55;border-radius:10px;padding:9px 13px;font:inherit;cursor:pointer}.arx-tools-quick{position:absolute;right:2%;bottom:11%;z-index:8503;font-size:.86em}.arx-tools-skip{position:absolute;right:2%;bottom:21%;z-index:8503}.arx-tools-undo{position:absolute;right:2%;bottom:32%;z-index:8503}.arx-tools-quick:focus,.arx-tools-skip:focus,.arx-tools-undo:focus,.arx-tools-panel button:focus{outline:3px solid #fff}.arx-tools-panel{position:absolute;right:2%;bottom:20%;max-height:65%;width:min(560px,94%);box-sizing:border-box;overflow:auto;background:rgba(15,20,29,.96);color:#fff;padding:15px;border-radius:12px;z-index:8510;box-shadow:0 4px 20px #000a}.arx-tools-panel-title{font-weight:bold;font-size:1.1em;margin-bottom:8px}.arx-tools-panel-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}.arx-tools-panel button{font-size:.9em}.arx-tools-info{position:absolute;right:2%;top:6%;color:#fff;background:#000a;padding:7px 12px;border-radius:8px;font-size:.80em;z-index:8501;pointer-events:none;white-space:pre-line}.arx-tools-dual{position:absolute;bottom:8%;left:5%;width:90%;z-index:8502;color:#f5e2a4;text-align:center;font-size:1.05em;text-shadow:1px 2px 4px #000,0 0 3px #000;pointer-events:none}.arx-tools-markers{position:absolute;inset:0;pointer-events:none;z-index:5}.arx-tools-marker{position:absolute;top:0;bottom:0;width:3px;opacity:.8;background:#e4d788;pointer-events:none}.arx-tools-marker[data-type="credits"]{background:#67c0e5}.arx-tools-marker[data-type="recap"]{background:#d9a0e8}.arx-tools-marker[data-type="ad"]{background:#df8888}.arx-tools-legend{font-size:.78em;opacity:.84;margin:4px 0}';
+    e.textContent='.arx-ai-free-switch .settings-param__value{font-size:0!important;color:transparent!important;display:inline-block;position:relative;vertical-align:middle;width:3.6rem;min-width:3.6rem;height:1.9rem;border-radius:999px;background:#525963;transition:background .15s ease}.arx-ai-free-switch .settings-param__value:after{content:"";display:block;position:absolute;top:.24rem;left:.24rem;width:1.42rem;height:1.42rem;border-radius:50%;background:#fff;transition:left .15s ease}.arx-ai-free-switch.arx-free-active .settings-param__value{background:#2f9b72}.arx-ai-free-switch.arx-free-active .settings-param__value:after{left:1.95rem}.arx-ai-auto-switch .settings-param__value{font-size:0!important;color:transparent!important;display:inline-block;position:relative;vertical-align:middle;width:3.6rem;min-width:3.6rem;height:1.9rem;border-radius:999px;background:#525963;transition:background .15s ease}.arx-ai-auto-switch .settings-param__value:after{content:"";display:block;position:absolute;top:.24rem;left:.24rem;width:1.42rem;height:1.42rem;border-radius:50%;background:#fff;transition:left .15s ease}.arx-ai-auto-switch.arx-auto-active .settings-param__value{background:#2f9b72}.arx-ai-auto-switch.arx-auto-active .settings-param__value:after{left:1.95rem}.arx-ai-manual-option.hide{display:none!important}[data-name="arx_tools_ai_key_deepseek"] .settings-param__value,[data-name="arx_tools_ai_key_openrouter"] .settings-param__value{-webkit-text-security:disc}.arx-tools-subtitles{position:absolute;bottom:12%;left:6%;width:88%;text-align:center;color:#fff;font-size:1.4em;text-shadow:0 1px 5px #000,1px 2px 8px #000;pointer-events:none;white-space:pre-line;z-index:8520}.arx-tools-quick{display:none!important}.arx-tools-panel-entry{display:inline-flex;padding:8px 16px;min-height:36px;border:1px solid #d4dae2;border-radius:8px;background:#25313d;color:white}.arx-tools-panel-entry.focus,.arx-tools-panel-entry:focus,.arx-tools-panel button.focus,.arx-tools-skip.focus{outline:3px solid white}.arx-tools-quick,.arx-tools-skip,.arx-tools-undo,.arx-tools-panel button{background:rgba(16,24,32,.93);color:#fff;border:1px solid #ffffff55;border-radius:10px;padding:9px 13px;font:inherit;cursor:pointer}.arx-tools-quick{position:absolute;right:2%;bottom:11%;z-index:8503;font-size:.86em}.arx-tools-skip{position:absolute;right:2%;bottom:21%;z-index:8503}.arx-tools-undo{position:absolute;right:2%;bottom:32%;z-index:8503}.arx-tools-quick:focus,.arx-tools-skip:focus,.arx-tools-undo:focus,.arx-tools-panel button:focus{outline:3px solid #fff}.arx-tools-panel{position:absolute;right:2%;bottom:20%;max-height:65%;width:min(560px,94%);box-sizing:border-box;overflow:auto;background:rgba(15,20,29,.96);color:#fff;padding:15px;border-radius:12px;z-index:8510;box-shadow:0 4px 20px #000a}.arx-tools-panel-title{font-weight:bold;font-size:1.1em;margin-bottom:8px}.arx-tools-panel-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}.arx-tools-panel button{font-size:.9em}.arx-tools-info{position:absolute;right:2%;top:6%;color:#fff;background:#000a;padding:7px 12px;border-radius:8px;font-size:.80em;z-index:8501;pointer-events:none;white-space:pre-line}.arx-tools-dual{position:absolute;bottom:8%;left:5%;width:90%;z-index:8502;color:#f5e2a4;text-align:center;font-size:1.05em;text-shadow:1px 2px 4px #000,0 0 3px #000;pointer-events:none}.arx-tools-markers{position:absolute;inset:0;pointer-events:none;z-index:5}.arx-tools-marker{position:absolute;top:0;bottom:0;width:3px;opacity:.8;background:#e4d788;pointer-events:none}.arx-tools-marker[data-type="credits"]{background:#67c0e5}.arx-tools-marker[data-type="recap"]{background:#d9a0e8}.arx-tools-marker[data-type="ad"]{background:#df8888}.arx-tools-legend{font-size:.78em;opacity:.84;margin:4px 0}';
     document.head.appendChild(e);styleReady=true;
   }
   function placeRoot(){return document.querySelector('.player')||document.body;}
@@ -986,10 +986,16 @@
     if(provider!=='openrouter')provider='deepseek';
     var model;
     if(provider==='deepseek')model=String(get('ai_model_deepseek','deepseek-chat')||'').trim();
-    else if(on('ai_openrouter_auto',true))model='openrouter/auto';
     else{
-      var chosen=String(get('ai_openrouter_manual_preset','custom')||'custom');
-      model=chosen==='custom'?String(get('ai_model_openrouter','google/gemini-2.5-flash')||'').trim():chosen;
+      var auto=on('ai_openrouter_auto',true),free=on('ai_openrouter_free',true);
+      if(auto)model=free?'openrouter/free':'openrouter/auto';
+      else{
+        var chosen=String(get('ai_openrouter_manual_preset','custom')||'custom');
+        model=chosen==='custom'?String(get('ai_model_openrouter','google/gemini-2.5-flash')||'').trim():chosen;
+        // With the Free guard active, only explicitly free model slugs may be
+        // sent. A paid/manual slug falls back to the free-only router.
+        if(free && model!=='openrouter/free' && !/:free$/.test(model))model='openrouter/free';
+      }
     }
     var key=String(get(provider==='deepseek'?'ai_key_deepseek':'ai_key_openrouter','')||'').trim();
     if(!/^[a-zA-Z0-9._/:+-]{1,120}$/.test(model))model='';
@@ -1141,7 +1147,10 @@
     var cfg=aiConfiguration();
     parent.appendChild(make('div','arx-tools-legend',
       'ИИ: '+(cfg.provider==='deepseek'?'DeepSeek':'OpenRouter')+' · '+(cfg.model||'модель не выбрана')+
-      (cfg.key?' · ключ настроен':' · укажи ключ в настройках')));
+      (cfg.key?' · ключ настроен':' · укажи ключ в настройках')+
+      (cfg.provider==='openrouter'&&cfg.model==='openrouter/free'?' · бесплатно':'')+
+      (cfg.provider==='openrouter'&&cfg.model==='openrouter/auto'?' · возможна оплата':'')
+    ));
     if(subtitles.aiRunning){var cancel=line(parent);
       panelButton(cancel,'Остановить ИИ-перевод ('+subtitles.progress+'%)',subtitleCancelTranslation);
     }
@@ -1201,8 +1210,27 @@
         }catch(e){}
       }
     });
+    setupItem('ai_openrouter_free','trigger','OpenRouter: только бесплатные модели (Free)',true,null,{
+      onRender:function(item){
+        item.addClass('arx-ai-free-switch');
+        item.toggleClass('arx-free-active',on('ai_openrouter_free',true));
+        item.attr('role','switch');
+        item.attr('aria-checked',on('ai_openrouter_free',true)?'true':'false');
+      },
+      onChange:function(value){
+        var active=value===true||value==='true';
+        try{
+          if(window.$){
+            var row=window.$('[data-name="arx_tools_ai_openrouter_free"]');
+            row.toggleClass('arx-free-active',active);
+            row.attr('aria-checked',active?'true':'false');
+          }
+        }catch(e){}
+      }
+    });
     setupItem('ai_openrouter_manual_preset','select','OpenRouter: модель при ручном выборе','custom',{
       custom:'Своя модель (указать ID ниже)',
+      'openrouter/free':'Free Router — все бесплатные модели',
       'google/gemini-2.5-flash':'Google Gemini 2.5 Flash',
       'openai/gpt-4.1-mini':'OpenAI GPT-4.1 mini',
       'anthropic/claude-sonnet-4.5':'Anthropic Claude Sonnet 4.5'
