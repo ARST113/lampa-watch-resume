@@ -1,0 +1,20 @@
+name: ARX subtitles backend checks
+on:
+  push:
+    paths:
+      - 'arx-subtitles-server/**'
+      - '.github/workflows/arx-subtitles-server.yml'
+  pull_request:
+    paths:
+      - 'arx-subtitles-server/**'
+      - '.github/workflows/arx-subtitles-server.yml'
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node --check arx-subtitles-server/server.mjs && node --check arx-subtitles-server/ai.mjs && node --check arx-subtitles-server/providers.mjs
+      - run: cd arx-subtitles-server && npm test
