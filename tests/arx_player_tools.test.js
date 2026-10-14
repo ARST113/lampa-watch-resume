@@ -4,8 +4,8 @@ const fs=require('node:fs'),path=require('node:path'),vm=require('node:vm');
 const {test}=require('node:test');
 function run(exportsOnly=true, options={}) {
   let src=fs.readFileSync(path.join(__dirname,'..','arx_player_tools.js'),'utf8');
-  if(exportsOnly) src=src.replace(/\}\)\(\);\s*$/,"window.__test={metadata,mapType,clock,put,parseSkipDB,parseIntroDB,parseTheIntroDB,parseAniSkip,parseIntroHater,fromLaunch,combine,fingerprint,appendManual,readManual,readChapters,readSubtitleSuggestions,remoteRequests,playerStart,playerVideo,tick,subtitleNormalize,srtParse,subtitleServer,subtitleFind,subtitleSelect,subtitleTranslate,subtitleDisable};})();");
-  const handlers={},store={},settings=[],children=[],tvNodes=[];
+  src=src.replace(/\}\)\(\);\s*$/,"window.__test={metadata,mapType,clock,put,parseSkipDB,parseIntroDB,parseTheIntroDB,parseAniSkip,parseIntroHater,fromLaunch,combine,fingerprint,appendManual,readManual,readChapters,readSubtitleSuggestions,remoteRequests,playerStart,playerVideo,tick,subtitleNormalize,srtParse,subtitleServer,subtitleFind,subtitleSelect,subtitleTranslate,subtitleDisable,subtitlePublicUrls,subtitleDownloadUrl};})();");
+  const handlers={},store={},settings=[],children=[],tvNodes=[],requests=[];
   const video={
     duration:2820,currentTime:0,paused:false,volume:1,playbackRate:1,videoWidth:1920,videoHeight:1080,
     events:{},addEventListener(k,f){this.events[k]=f;},removeEventListener(k){delete this.events[k];},
@@ -78,9 +78,15 @@ function run(exportsOnly=true, options={}) {
   function XHR(){
     this.readyState=0;this.status=0;this.responseText='';
   }
-  XHR.prototype.open=function(m,url){this.url=url;};
-  XHR.prototype.send=function(){
-    this.readyState=4;this.status=404;this.onreadystatechange();
+  XHR.prototype.open=function(m,url){this.url=url;this.method=m;};
+  XHR.prototype.setRequestHeader=function(){};
+  XHR.prototype.send=function(body){
+    requests.push({url:this.url,method:this.method,body});
+    const response=options.xhrResponse&&options.xhrResponse(this.url,this.method,body);
+    this.readyState=4;
+    this.status=response?response.status:404;
+    this.responseText=response?
+      (typeof response.data==='string'?response.data:JSON.stringify(response.data)):'';this.onreadystatechange();
   };
   XHR.prototype.abort=function(){};
   const context={window,document:fakeDoc,console,
@@ -89,7 +95,7 @@ function run(exportsOnly=true, options={}) {
   vm.runInNewContext(src,context);
   if(!exportsOnly && handlers['app:app'])handlers['app:app']({type:'ready'});
   return {api:window.__test,handlers,settings,store,video,children,window,document:fakeDoc,
-    controller:activeTV,panelRight,navigator};
+    controller:activeTV,panelRight,navigator,requests};
 }
 function plain(x){return JSON.parse(JSON.stringify(x));}
 const e=run(),f=e.api;
@@ -183,7 +189,7 @@ test('No external URL sent to providers, only IDs and duration',()=>{
   assert.equal(req.length,0);
 });
 test('Initialize and register internal player listeners on ready environment',()=>{
-  let a=run(false);assert.equal(a.settings.length,27);
+  let a=run(false);assert.equal(a.settings.length,28);
   assert.ok(a.handlers.start);assert.ok(a.handlers.ready);assert.ok(a.handlers.destroy);
   assert.ok(!a.children.some(x=>x.className==='arx-tools-quick'));
 });
@@ -354,4 +360,45 @@ test('legacy OpenSubtitles RU is disabled, without erasing its account settings'
  const a=run(false);
  assert.equal(a.store['opensubtitles_ru_enabled'],'false');
  assert.equal(Object.hasOwn(a.store,'opensubtitles_ru_device_token'),false);
+});
+
+test('Public subtitle endpoints are generated without any ARX server',()=>{
+ const a=run(),m={imdb:'tt0903747',season:1,episode:2},u=a.api.subtitlePublicUrls(m,'rus');
+ assert.ok(u.stremio.includes('opensubtitles-v3.strem.io'));
+ assert.ok(u.stremio.includes('tt0903747%3A1%3A2'));
+ assert.ok(u.rest.includes('rest.opensubtitles.org'));
+ assert.equal(a.api.subtitleDownloadUrl('1957291837'),
+   'https://subs5.strem.io/en/download/subencoding-stremio-utf8/src-api/file/1957291837.srt');
+ assert.equal(a.api.subtitleDownloadUrl('../private'),'');
+});
+test('Search stays client-side even when an AI backend URL is configured',async()=>{
+ const sample={subtitles:[{lang:'rus',url:'https://subs5.strem.io/en/file/1957291837',
+   subtitleFileName:'Русские',g:3}]};
+ const a=run(false,{xhrResponse:(url)=>{
+   if(url.includes('opensubtitles-v3.strem.io'))return {status:200,data:sample};
+   if(url.includes('rest.opensubtitles.org'))return {status:200,data:[]};
+   return {status:404,data:[]};
+ }});
+ a.window.Lampa.Storage.set('arx_tools_subtitle_api','https://subs.example.org');
+ a.handlers.start({url:'https://example.org/S01E02.mkv',card:{id:22,imdb_id:'tt0903747'},
+   season:1,episode:2});
+ a.api.subtitleFind('rus');
+ await Promise.resolve();await Promise.resolve();await Promise.resolve();
+ assert.ok(a.requests.some(x=>x.url.includes('opensubtitles-v3.strem.io')));
+ assert.ok(a.requests.some(x=>x.url.includes('rest.opensubtitles.org')));
+ assert.equal(a.requests.filter(x=>x.url.includes('subs.example.org')).length,0,
+   'configured AI server must not receive ready-made subtitle searches when providers respond');
+});
+test('Subtitle file selection first downloads SRT directly, even with configured AI backend',async()=>{
+ const text='1\n00:00:02,000 --> 00:00:05,000\nЗдравствуйте\n';
+ const a=run(false,{xhrResponse:(url)=>{
+   if(url.includes('subs5.strem.io'))return {status:200,data:text};
+   return {status:404,data:''};
+ }});
+ a.window.Lampa.Storage.set('arx_tools_subtitle_api','https://subs.example.org');
+ a.handlers.start({url:'https://example.org/video.mkv',card:{id:22,imdb_id:'tt0903747'}});
+ a.api.subtitleSelect({id:'1957291837',lang:'rus',title:'Русские'});
+ await Promise.resolve();await Promise.resolve();
+ assert.equal(a.requests.filter(x=>x.url.includes('subs5.strem.io')).length,1);
+ assert.equal(a.requests.filter(x=>x.url.includes('subs.example.org')).length,0);
 });
