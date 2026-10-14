@@ -198,7 +198,7 @@ test('No external URL sent to providers, only IDs and duration',()=>{
   assert.equal(req.length,0);
 });
 test('Initialize and register internal player listeners on ready environment',()=>{
-  let a=run(false);assert.equal(a.settings.length,34);
+  let a=run(false);assert.equal(a.settings.length,35);
   assert.ok(a.handlers.start);assert.ok(a.handlers.ready);assert.ok(a.handlers.destroy);
   assert.ok(!a.children.some(x=>x.className==='arx-tools-quick'));
 });
@@ -233,9 +233,12 @@ test('Manual skip control seeks to segment end and undo restores original timest
     card:{id:22,imdb_id:'tt1234567'},segments:{skip:[{start:60,end:95}]}});
   a.video.currentTime=67;
   a.video.events.timeupdate({type:'timeupdate'});
-  const skip=a.children.find(x=>(x.className||'').split(' ').includes('arx-tools-skip'));
-  const undo=a.children.find(x=>(x.className||'').split(' ').includes('arx-tools-undo'));
-  assert.equal(skip.style.display,'block');
+  const capsule=a.children.find(x=>(x.className||'').split(' ').includes('arx-tools-capsule'));
+  assert.ok(capsule);
+  const skip=capsule.children.find(x=>(x.className||'').split(' ').includes('arx-tools-skip'));
+  const undo=capsule.children.find(x=>(x.className||'').split(' ').includes('arx-tools-undo'));
+  assert.equal(skip.style.display,'flex');
+  assert.equal(capsule.style.display,'flex');
   skip.click();
   assert.equal(a.video.currentTime,95);
   assert.equal(undo.style.display,'block');
@@ -472,6 +475,7 @@ test('Direct AI configuration is restricted to official DeepSeek/OpenRouter HTTP
  assert.equal(cfg.model,'deepseek-chat');
  a.window.Lampa.Storage.set('arx_tools_ai_provider','openrouter');
  a.window.Lampa.Storage.set('arx_tools_ai_openrouter_auto',false);
+ a.window.Lampa.Storage.set('arx_tools_ai_openrouter_free',false);
  a.window.Lampa.Storage.set('arx_tools_ai_key_openrouter','test-key-not-real');
  a.window.Lampa.Storage.set('arx_tools_ai_model_openrouter','google/gemini-2.5-flash');
  cfg=a.api.aiConfiguration();
@@ -603,14 +607,17 @@ test('OpenRouter selects Auto Router when toggle default is enabled',()=>{
  a.window.Lampa.Storage.set('arx_tools_ai_provider','openrouter');
  a.window.Lampa.Storage.set('arx_tools_ai_key_openrouter','test-openrouter-key');
  a.window.Lampa.Storage.set('arx_tools_ai_model_openrouter','google/gemini-2.5-flash');
- assert.equal(a.api.aiConfiguration().model,'openrouter/auto');
+ assert.equal(a.api.aiConfiguration().model,'openrouter/free');
  a.window.Lampa.Storage.set('arx_tools_ai_openrouter_auto',true);
+ assert.equal(a.api.aiConfiguration().model,'openrouter/free');
+ a.window.Lampa.Storage.set('arx_tools_ai_openrouter_free',false);
  assert.equal(a.api.aiConfiguration().model,'openrouter/auto');
 });
 test('OpenRouter manually selected preset overrides custom text only when auto disabled',()=>{
  const a=run();
  a.window.Lampa.Storage.set('arx_tools_ai_provider','openrouter');
  a.window.Lampa.Storage.set('arx_tools_ai_openrouter_auto',false);
+ a.window.Lampa.Storage.set('arx_tools_ai_openrouter_free',false);
  a.window.Lampa.Storage.set('arx_tools_ai_openrouter_manual_preset','openai/gpt-4.1-mini');
  a.window.Lampa.Storage.set('arx_tools_ai_model_openrouter','google/gemini-2.5-flash');
  assert.equal(a.api.aiConfiguration().model,'openai/gpt-4.1-mini');
@@ -627,6 +634,7 @@ test('OpenRouter Auto Router chat body uses documented model slug, without chang
    return {status:200,data:{choices:[{message:{content:'{"lines":["Привет"]}'}}]}};
  }});
  a.window.Lampa.Storage.set('arx_tools_ai_provider','openrouter');
+ a.window.Lampa.Storage.set('arx_tools_ai_openrouter_free',false);
  a.window.Lampa.Storage.set('arx_tools_ai_key_openrouter','test-key');
  const config=a.api.aiConfiguration();
  const result=await a.api.aiChatRequest(config,[{start:1,end:4,text:'Hello'}],'en','ru');
@@ -647,4 +655,80 @@ test('Auto router toggle and manual model entries have correct TV settings metad
  assert.equal(typeof select.onRender,'function');
  const manual=all.find(x=>x.param.name==='arx_tools_ai_model_openrouter');
  assert.equal(typeof manual.onRender,'function');
+});
+
+test('OpenRouter Auto and Free together use the free-only router by default',()=>{
+ const a=run();
+ a.window.Lampa.Storage.set('arx_tools_ai_provider','openrouter');
+ a.window.Lampa.Storage.set('arx_tools_ai_key_openrouter','sk-or-test');
+ const config=a.api.aiConfiguration();
+ assert.equal(config.model,'openrouter/free');
+ assert.equal(config.endpoint,'https://openrouter.ai/api/v1/chat/completions');
+ const free=a.settings.find(x=>x.param?.name==='arx_tools_ai_openrouter_free');
+ assert.ok(!free,'Settings are registered only in fully initialized runtime');
+});
+test('OpenRouter Free guard prevents accidental paid manual model use',()=>{
+ const a=run();
+ a.window.Lampa.Storage.set('arx_tools_ai_provider','openrouter');
+ a.window.Lampa.Storage.set('arx_tools_ai_openrouter_auto',false);
+ a.window.Lampa.Storage.set('arx_tools_ai_openrouter_free',true);
+ a.window.Lampa.Storage.set('arx_tools_ai_openrouter_manual_preset','openai/gpt-4.1-mini');
+ assert.equal(a.api.aiConfiguration().model,'openrouter/free');
+ a.window.Lampa.Storage.set('arx_tools_ai_openrouter_manual_preset','custom');
+ a.window.Lampa.Storage.set('arx_tools_ai_model_openrouter','meta-llama/test-model:free');
+ assert.equal(a.api.aiConfiguration().model,'meta-llama/test-model:free');
+ a.window.Lampa.Storage.set('arx_tools_ai_model_openrouter','custom-paid-model');
+ assert.equal(a.api.aiConfiguration().model,'openrouter/free');
+});
+test('OpenRouter Free and Auto are independent TV switches with default On',()=>{
+ const a=run(false);
+ const entries=a.settings.filter(x=>x.param);
+ const free=entries.find(x=>x.param.name==='arx_tools_ai_openrouter_free');
+ const auto=entries.find(x=>x.param.name==='arx_tools_ai_openrouter_auto');
+ assert.ok(free&&auto);
+ assert.equal(free.param.type,'trigger');
+ assert.equal(free.param.default,true);
+ assert.equal(auto.param.default,true);
+ assert.equal(typeof free.onChange,'function');
+ assert.equal(typeof free.onRender,'function');
+});
+test('Frosted TV controls group menu, skip and undo inside an accessible capsule',()=>{
+ const a=run(false);
+ a.handlers.start({url:'https://example.org/S01E01.mkv',season:1,episode:1,
+   card:{imdb_id:'tt1234567'},segments:{skip:[{start:60,end:95}]}});
+ const capsule=a.children.find(x=>(x.className||'').includes('arx-tools-capsule'));
+ assert.ok(capsule);
+ assert.equal(capsule.style.display,'none');
+ assert.ok(capsule.children.some(x=>(x.className||'').includes('arx-tools-skip-menu')));
+ assert.ok(capsule.children.some(x=>(x.className||'').includes('arx-tools-undo')));
+ a.video.currentTime=63;a.video.events.timeupdate({type:'timeupdate'});
+ assert.equal(capsule.style.display,'flex');
+ const menu=capsule.children.find(x=>(x.className||'').includes('arx-tools-skip-menu'));
+ assert.equal(typeof menu['hover:enter'],'function');
+ const skip=capsule.children.find(x=>(x.className||'').includes('arx-tools-skip selector'));
+ assert.ok(skip.children.some(x=>String(x.innerHTML||'').includes('<svg')));
+});
+test('D-pad Left moves from skip to menu and OK opens ARX, Back returns to video',()=>{
+ const a=run(false);
+ a.handlers.start({url:'https://example.org/S01E01.mkv',season:1,episode:1,
+  card:{imdb_id:'tt1234567'},segments:{skip:[{start:60,end:95}]}});
+ a.video.currentTime=63;a.video.events.timeupdate({type:'timeupdate'});
+ assert.equal(a.controller.enabled().name,'arx_tools_skip');
+ const original=a.controller.selected;
+ a.controller.controllers.arx_tools_skip.left();
+ assert.notEqual(a.controller.selected,original);
+ a.controller.selected['hover:enter']();
+ assert.equal(a.controller.enabled().name,'arx_tools_menu');
+ a.controller.controllers.arx_tools_menu.back();
+ assert.equal(a.controller.enabled().name,'arx_tools_skip');
+});
+test('Capsule is hidden on exit and in player without available skip',()=>{
+ const a=run(false);
+ const capsule=a.children.find(x=>(x.className||'').includes('arx-tools-capsule'));
+ assert.ok(capsule);
+ assert.equal(capsule.style.display,'none');
+ a.handlers.start({url:'https://example.org/movie.mp4',card:{imdb_id:'tt1234567'}});
+ assert.equal(capsule.style.display,'none');
+ a.handlers.destroy();
+ assert.equal(capsule.style.display,'none');
 });
