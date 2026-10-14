@@ -524,3 +524,29 @@ test('End-to-end direct AI translation preserves time ranges and bypasses subtit
  a.video.events.timeupdate({type:'timeupdate'});
  assert.equal(panelNodes[0].textContent,'Перевод Hello');
 });
+
+test('OpenRouter direct chat call uses configured provider URL and API key',async()=>{
+ const a=run(false,{xhrResponse:(url,method,body)=>{
+   assert.equal(url,'https://openrouter.ai/api/v1/chat/completions');
+   const data=JSON.parse(body);
+   assert.equal(data.model,'google/gemini-2.5-flash');
+   return {status:200,data:{choices:[{message:{content:'{"lines":["Это проверка"]}'}}]}};
+ }});
+ const config={provider:'openrouter',model:'google/gemini-2.5-flash',
+   key:'test-key-openrouter-only',endpoint:'https://openrouter.ai/api/v1/chat/completions'};
+ const response=await a.api.aiChatRequest(config,[{start:5,end:7,text:'This is a test'}],'en','ru');
+ assert.equal(response.ok,true);
+ assert.equal(response.lines[0],'Это проверка');
+ assert.equal(a.requests[0].headers.Authorization,'Bearer test-key-openrouter-only');
+});
+test('API 401 does not expose secrets in error messages or retry automatically',async()=>{
+ const a=run(false,{xhrResponse:()=>({status:401,data:{error:{message:'invalid credential'}}})});
+ const config={provider:'deepseek',model:'deepseek-chat',key:'very-private-test-key',
+   endpoint:'https://api.deepseek.com/v1/chat/completions'};
+ const response=await a.api.aiChatRequest(config,[{start:5,end:6,text:'Hello'}],'en','ru');
+ assert.equal(response.ok,false);
+ assert.equal(response.status,401);
+ assert.equal(response.error,'HTTP 401');
+ assert.ok(!JSON.stringify(response).includes('very-private-test-key'));
+ assert.equal(a.requests.length,1);
+});
