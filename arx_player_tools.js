@@ -926,6 +926,7 @@
     setupItem('sleep','select','Таймер сна при старте видео', 'off',
       {off:'Выкл','15':'15 минут','30':'30 минут','45':'45 минут','60':'60 минут','90':'90 минут',end:'После окончания'});
     setupItem('fade','trigger','Тихое затухание громкости перед сном',false);
+    setupItem('subtitle_replace_legacy','trigger','Отключать старый OpenSubtitles RU (конфликтует с ARX)',true);
     setupItem('subtitle_api','input','URL своего сервера ARX Subtitles (HTTPS)', '');
     setupItem('subtitle_client_token','input','Токен доступа к ИИ-переводу (не ключ DeepSeek)', '');
     setupItem('subs','trigger','Устаревшая загрузка OpenSubtitles RU (рекомендуется отключить)',false);
@@ -951,8 +952,9 @@
     // Remove legacy corner buttons left by older ARX builds.
     try{var legacy=document.querySelectorAll('.arx-tools-quick');for(var i=0;i<legacy.length;i++)if(legacy[i].parentNode)legacy[i].parentNode.removeChild(legacy[i]);}catch(e){}
     mounted=true;settings();controls();
-    // ARX now has independent subtitle search and AI integration; no auto-injection
-    // of third-party OpenSubtitles RU, whose unavailable service caused UI errors.
+    // Own subtitle search + AI, without loading the unresponsive third-party service.
+    // Only disable the legacy extension's own enabled flag; do not delete its settings or purchases.
+    if(on('subtitle_replace_legacy',true))try{L.Storage.set('opensubtitles_ru_enabled','false');}catch(e){}
 
     L.Player.listener.follow('start',playerStart);
     L.Player.listener.follow('ready',function(data){if(!current)playerStart(data);bindVideo();tick();});
