@@ -4,7 +4,7 @@ const fs=require('node:fs'),path=require('node:path'),vm=require('node:vm');
 const {test}=require('node:test');
 function run(exportsOnly=true, options={}) {
   let src=fs.readFileSync(path.join(__dirname,'..','arx_player_tools.js'),'utf8');
-  if(exportsOnly) src=src.replace(/\}\)\(\);\s*$/,"window.__test={metadata,mapType,clock,put,parseSkipDB,parseIntroDB,parseTheIntroDB,parseAniSkip,parseIntroHater,fromLaunch,combine,fingerprint,appendManual,readManual,readChapters,readSubtitleSuggestions,remoteRequests,playerStart,playerVideo,tick};})();");
+  if(exportsOnly) src=src.replace(/\}\)\(\);\s*$/,"window.__test={metadata,mapType,clock,put,parseSkipDB,parseIntroDB,parseTheIntroDB,parseAniSkip,parseIntroHater,fromLaunch,combine,fingerprint,appendManual,readManual,readChapters,readSubtitleSuggestions,remoteRequests,playerStart,playerVideo,tick,subtitleNormalize,srtParse,subtitleServer,subtitleFind,subtitleSelect,subtitleTranslate,subtitleDisable};})();");
   const handlers={},store={},settings=[],children=[],tvNodes=[];
   const video={
     duration:2820,currentTime:0,paused:false,volume:1,playbackRate:1,videoWidth:1920,videoHeight:1080,
@@ -183,7 +183,7 @@ test('No external URL sent to providers, only IDs and duration',()=>{
   assert.equal(req.length,0);
 });
 test('Initialize and register internal player listeners on ready environment',()=>{
-  let a=run(false);assert.equal(a.settings.length,25);
+  let a=run(false);assert.equal(a.settings.length,27);
   assert.ok(a.handlers.start);assert.ok(a.handlers.ready);assert.ok(a.handlers.destroy);
   assert.ok(a.children.some(x=>x.className==='arx-tools-quick'));
 });
@@ -323,4 +323,29 @@ test('TV: native Back key closes ARX panel without closing video',()=>{
   assert.equal(prevented,true);
   assert.equal(stopped,true);
   assert.equal(a.controller.enabled().name,'player_panel');
+});
+
+test('ARX no longer creates the floating corner button outside the player',()=>{
+ const a=run(false);assert.ok(!a.children.some(x=>(x.className||'').split(' ').includes('arx-tools-quick')));
+ a.handlers.start({url:'https://example.org/media.mkv',card:{id:22,imdb_id:'tt1234567'}});
+ assert.ok(!a.children.some(x=>(x.className||'').split(' ').includes('arx-tools-quick')));
+ assert.ok(a.panelRight.children.some(x=>(x.className||'').includes('arx-tools-panel-entry')));
+});
+test('Subtitle provider results are deduplicated by normalized file id',()=>{
+ const a=run(),result=plain(a.api.subtitleNormalize({subtitles:[
+ {lang:'rus',url:'https://subs5.strem.io/en/download/src-api/file/1957291837',subtitleFileName:'Pilot',g:'4'}]},
+ [{IDSubtitleFile:'1957291837',SubLanguageID:'rus',SubDownloadsCnt:'30'}],'rus'));
+ assert.equal(result.length,1);assert.equal(result[0].id,'1957291837');
+});
+test('External subtitle SRT parses text and timestamps without HTML',()=>{
+ const a=run(),cues=plain(a.api.srtParse('1\n00:01:00,100 --> 00:01:03,200\n<i>Привет!</i>\n\n2\n00:01:04.000 --> 00:01:07.000\nДо свидания'));
+ assert.equal(cues.length,2);assert.equal(cues[0].start,60.1);
+ assert.equal(cues[0].text,'Привет!');
+});
+test('AI subtitle service URL is HTTPS-only except local development',()=>{
+ const a=run();
+ a.window.Lampa.Storage.set('arx_tools_subtitle_api','http://example.org:8091');
+ assert.equal(a.api.subtitleServer(),'');
+ a.window.Lampa.Storage.set('arx_tools_subtitle_api','https://subs.example.org');
+ assert.equal(a.api.subtitleServer(),'https://subs.example.org');
 });
