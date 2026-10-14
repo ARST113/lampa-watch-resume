@@ -1,4 +1,4 @@
-/* ARX Player Tools 0.4.0 — Lampa internal HTML5 player
+/* ARX Player Tools 0.4.1 — Lampa internal HTML5 player
  * Public metadata only; no torrent URLs, credentials or watch history transmitted.
  * Supports skip services, episode-specific corrections, remote navigation,
  * HTML5 text tracks, chapter cues, sleep timer and playback information.
@@ -7,7 +7,7 @@
   'use strict';
   if (window.__ARX_PLAYER_TOOLS__) return;
   window.__ARX_PLAYER_TOOLS__ = true;
-  var L = window.Lampa, VERSION = '0.4.0', NS = 'arx_tools_';
+  var L = window.Lampa, VERSION = '0.4.1', NS = 'arx_tools_';
   var TYPES = ['intro','recap','credits','preview','ad','postcredits'];
   var NAMES = {intro:'Заставка',recap:'Рекап',credits:'Титры',preview:'Анонс',ad:'Реклама',postcredits:'Сцена после титров'};
   var mounted = false, current = null, playerToken = 0, control = {}, attachedVideo = null, cacheTimer = null;
@@ -781,6 +781,51 @@
     });
     return cues;
   }
+  // Ready-made subtitles are retrieved directly from Lampa. The optional ARX
+  // server is an AI endpoint and a last-resort relay if BOTH public APIs fail.
+  function subtitlePublicUrls(m,language) {
+    var serial=m.season!==null&&m.episode!==null;
+    var id=m.imdb+(serial?':'+m.season+':'+m.episode:'');
+    return {
+      stremio:'https://opensubtitles-v3.strem.io/subtitles/'+
+        (serial?'series':'movie')+'/'+encodeURIComponent(id)+'.json',
+      rest:'https://rest.opensubtitles.org/search/'+
+        (serial?'episode-'+m.episode+'/':'')+'imdbid-'+m.imdb.slice(2)+'/'+
+        (serial?'season-'+m.season+'/':'')+'sublanguageid-'+language
+    };
+  }
+  function subtitlePublicRequest(url,textMode) {
+    // Lampa.Reguest is the app-native request transport, used by existing
+    // extensions; browser CORS policies still apply where appropriate.
+    if(L.Reguest && typeof L.Reguest==='function'){
+      return new Promise(function(resolve){
+        var done=false,request;
+        var timeout=setTimeout(function(){
+          if(done)return;done=true;
+          try{if(request&&request.clear)request.clear();}catch(e){}
+          resolve({ok:false,status:0});
+        },16000);
+        function finish(result){
+          if(done)return;done=true;clearTimeout(timeout);resolve(result);
+        }
+        try{
+          request=new L.Reguest();
+          if(request.timeout)request.timeout(14000);
+          request.silent(url,function(data){
+            var value=textMode?data:json(data);
+            finish({ok:true,status:200,data:value});
+          },function(error){
+            finish({ok:false,status:error&&error.status||0});
+          },false,{dataType:textMode?'text':'json'});
+        }catch(e){finish({ok:false,status:0});}
+      });
+    }
+    return requestSubtitle(url,'GET',null,'',textMode);
+  }
+  function subtitleDownloadUrl(id) {
+    if(!/^\d{3,20}$/.test(String(id)))return '';
+    return 'https://subs5.strem.io/en/download/subencoding-stremio-utf8/src-api/file/'+id+'.srt';
+  }
   function subtitleFind(language){
     if(!current)return;
     var m=current.meta;
@@ -803,44 +848,66 @@
       }
       subtitleNotice('для поиска необходим IMDb ID карточки');return;
     }
-    var token=++subtitles.token,server=subtitleServer(),serial=m.season!==null&&m.episode!==null;
-    var ep=serial?'&season='+m.season+'&episode='+m.episode:'';
-    subtitles.items=[];subtitles.lang=language;subtitles.status='Поиск '+(language==='rus'?'русских':'английских')+' субтитров...';
+    var token=++subtitles.token;
+    subtitles.items=[];subtitles.lang=language;
+    subtitles.status='Поиск '+(language==='rus'?'русских':'английских')+' субтитров...';
     renderPanel();
-    if(server){
-      requestSubtitle(server+'/v1/subtitles/search?imdb_id='+m.imdb+ep+'&lang='+language,'GET',null,'',false)
-        .then(function(r){
-          if(token!==subtitles.token||!current)return;
-          subtitles.items=r.ok&&r.data&&Array.isArray(r.data.subtitles)?r.data.subtitles.slice(0,15):[];
-          subtitleNotice(subtitles.items.length?'Найдено '+subtitles.items.length+' вариантов':'Нет результатов или сервер недоступен');
-        });return;
-    }
-    // Backend not yet deployed: free sources remain available without the AI layer.
-    var ident=m.imdb+(serial?':'+m.season+':'+m.episode:'');
-    var url='https://opensubtitles-v3.strem.io/subtitles/'+(serial?'series':'movie')+'/'+encodeURIComponent(ident)+'.json';
-    var rest='https://rest.opensubtitles.org/search/'+(serial?'episode-'+m.episode+'/':'')+
-      'imdbid-'+m.imdb.slice(2)+'/'+(serial?'season-'+m.season+'/':'')+'sublanguageid-'+language;
-    Promise.all([requestSubtitle(url,'GET'),requestSubtitle(rest,'GET')]).then(function(r){
+    var urls=subtitlePublicUrls(m,language);
+    Promise.all([
+      subtitlePublicRequest(urls.stremio,false),
+      subtitlePublicRequest(urls.rest,false)
+    ]).then(function(r){
       if(token!==subtitles.token||!current)return;
-      subtitles.items=subtitleNormalize(r[0].data,r[1].data,language);
-      subtitleNotice(subtitles.items.length?'Найдено '+subtitles.items.length+' вариантов':
-        'Источники недоступны или результатов нет');
+      var items=subtitleNormalize(r[0].data,r[1].data,language);
+      var reachable=r[0].ok||r[1].ok;
+      if(items.length||reachable||!subtitleServer()||!on('subtitle_proxy_fallback',true)){
+        subtitles.items=items;
+        subtitleNotice(items.length?'Найдено '+items.length+' вариантов (напрямую)':
+          reachable?'Для этой серии субтитры не найдены':
+          'Прямой поиск недоступен (сеть, CORS или провайдер)');
+        return;
+      }
+      // Only when the direct calls BOTH fail, try the configured proxy.
+      subtitles.status='Прямые источники недоступны. Проверяю резервный прокси...';
+      if(control.panel&&control.panel.style.display!=='none')renderPanel();
+      var serial=m.season!==null&&m.episode!==null;
+      var ep=serial?'&season='+m.season+'&episode='+m.episode:'';
+      requestSubtitle(subtitleServer()+'/v1/subtitles/search?imdb_id='+m.imdb+ep+'&lang='+language,
+        'GET',null,'',false).then(function(v){
+          if(token!==subtitles.token||!current)return;
+          subtitles.items=v.ok&&v.data&&Array.isArray(v.data.subtitles)?v.data.subtitles.slice(0,15):[];
+          subtitleNotice(subtitles.items.length?'Найдено '+subtitles.items.length+' вариантов (резервный прокси)':
+            'Публичные источники и резервный прокси недоступны');
+        });
     });
   }
   function subtitleSelect(item){
     if(!current||!item||!/^\d{3,20}$/.test(String(item.id)))return;
-    var token=++subtitles.token,server=subtitleServer(),id=String(item.id);
-    var path=server?server+'/v1/subtitles/file/'+id:
-      'https://subs5.strem.io/en/download/subencoding-stremio-utf8/src-api/file/'+id+'.srt';
+    var token=++subtitles.token,id=String(item.id);
     subtitles.status='Загрузка '+item.title;renderPanel();
-    requestSubtitle(path,'GET',null,'',!server).then(function(r){
+    subtitlePublicRequest(subtitleDownloadUrl(id),true).then(function(r){
       if(token!==subtitles.token||!current)return;
-      var cues=server?(r.data&&r.data.cues):srtParse(r.data);
-      if(!r.ok||!Array.isArray(cues)||!cues.length){subtitleNotice('не удалось загрузить дорожку');return;}
-      subtitles.cues=cues;subtitles.active=true;subtitles.lang=item.lang||subtitles.lang;
-      subtitles.last=null;subtitles.status='Загружено '+cues.length+' реплик';
-      subtitleTick();renderPanel();
+      var cues=r.ok?srtParse(r.data):[];
+      if(cues.length){subtitleUseCues(cues,item);return;}
+      // File proxy is used only if the browser cannot download/parse SRT.
+      var server=subtitleServer();
+      if(!server||!on('subtitle_proxy_fallback',true)){
+        subtitleNotice('Не удалось скачать дорожку напрямую');return;
+      }
+      subtitles.status='Пробую загрузку через резервный прокси...';
+      if(control.panel&&control.panel.style.display!=='none')renderPanel();
+      requestSubtitle(server+'/v1/subtitles/file/'+id,'GET',null,'',false).then(function(v){
+        if(token!==subtitles.token||!current)return;
+        var alternate=v.ok&&v.data&&Array.isArray(v.data.cues)?v.data.cues:[];
+        if(!alternate.length){subtitleNotice('Не удалось скачать дорожку');return;}
+        subtitleUseCues(alternate,item);
+      });
     });
+  }
+  function subtitleUseCues(cues,item){
+    subtitles.cues=cues;subtitles.active=true;subtitles.lang=item.lang||subtitles.lang;
+    subtitles.last=null;subtitles.status='Загружено '+cues.length+' реплик';
+    subtitleTick();renderPanel();
   }
   function subtitleDisable(){
     ++subtitles.token;subtitles.cues=[];subtitles.active=false;subtitles.last=null;
@@ -908,7 +975,9 @@
       panelButton(r,item.source+' · '+name,function(){subtitleSelect(item);});
     });
     if(!subtitleServer())parent.appendChild(make('div','arx-tools-legend',
-      'Поиск без ИИ-сервера. Для перевода укажи HTTPS API в настройках ARX.'));
+      'Готовые субтитры ищутся напрямую. Для ИИ-перевода нужен собственный HTTPS API.'));
+    else parent.appendChild(make('div','arx-tools-legend',
+      'Поиск и загрузка — напрямую. Сервер используется для ИИ и резервного прокси.'));
   }
 
   function settings(){
@@ -936,7 +1005,8 @@
       {off:'Выкл','15':'15 минут','30':'30 минут','45':'45 минут','60':'60 минут','90':'90 минут',end:'После окончания'});
     setupItem('fade','trigger','Тихое затухание громкости перед сном',false);
     setupItem('subtitle_replace_legacy','trigger','Отключать старый OpenSubtitles RU (конфликтует с ARX)',true);
-    setupItem('subtitle_api','input','URL своего сервера ARX Subtitles (HTTPS)', '');
+    setupItem('subtitle_api','input','URL сервера ИИ (не требуется для поиска субтитров)', '');
+    setupItem('subtitle_proxy_fallback','trigger','Резервный поиск через сервер при блокировке прямого соединения',true);
     setupItem('subtitle_client_token','input','Токен доступа к ИИ-переводу (не ключ DeepSeek)', '');
     setupItem('dualsubs','trigger','Вторые HTML5-субтитры (экспериментально)',false);
     setupItem('dual_lang','select','Язык вторых субтитров','en',{en:'Английский',ru:'Русский',es:'Испанский',de:'Немецкий',fr:'Французский'});
