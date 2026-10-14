@@ -89,3 +89,11 @@ OpenRouter поддерживается через `AI_BASE_URL=https://openrout
 - Файлы, возвращаемые сервисом, предназначены для личного просмотра. Учитывайте условия OpenSubtitles и Stremio при публичном распространении или кэшировании субтитров.
 
 Автоматические проверки: [GitHub Actions](../.github/workflows/arx-subtitles-server.yml), тесты [server.test.mjs](tests/server.test.mjs).
+
+## Запуск обновлений через GitHub Actions
+
+После первоначальной настройки VPS и `.env` можно пользоваться workflow [Deploy ARX subtitle backend](../.github/workflows/deploy-arx-subtitles.yml) через **Actions → Deploy ARX subtitle backend → Run workflow**.
+
+В **Settings → Secrets and variables → Actions** добавьте `ARX_SSH_HOST`, `ARX_SSH_USER`, `ARX_SSH_PORT` (если не 22), `ARX_SSH_PRIVATE_KEY` и `ARX_SSH_KNOWN_HOSTS` (проверенная, закреплённая публичная SSH-строка хоста). Приватный SSH-ключ нельзя вставлять в открытые issue или чат. Пользователь SSH должен иметь разрешение запускать `docker compose` без интерактивного `sudo`; лучше использовать отдельную учётную запись с минимально необходимыми правами. На сервере заранее создать `/opt/arx-subtitles/.env` с ключом модели и токеном клиента; workflow не загружает секреты из GitHub в файлы `.env`, не удаляет текущие настройки и не открывает порт 8091 наружу.
+
+Не запускайте workflow до того, как будете уверены, что SSH-ключ доверенный, VPS подготовлен и DNS/HTTPS reverse proxy настроены. После деплоя проверьте публичный `/health` и поиск в Lampa.
