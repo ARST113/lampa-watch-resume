@@ -732,3 +732,36 @@ test('Capsule is hidden on exit and in player without available skip',()=>{
  a.handlers.destroy();
  assert.equal(capsule.style.display,'none');
 });
+
+test('ARX capsule and player controls use native Lampa semi-transparent white background',()=>{
+  const a=run(false);
+  const css=a.children.filter(x=>x.tagName==='style'&&x.id==='arx-tools-style').map(x=>x.textContent).join('');
+  assert.ok(css.includes('.arx-tools-capsule{'), 'frosted controls style missing');
+  assert.ok(css.includes('background:rgba(255,255,255,.10)'));
+  assert.ok(css.includes('backdrop-filter:blur(1em)'));
+  assert.ok(css.includes('.arx-tools-capsule-button.focus'));
+  assert.ok(css.includes('background:#fff!important;color:#000!important'),'focus must invert like native Lampa');
+  assert.ok(css.includes('border-radius:4em'),'native Lampa pill rounding must be reused');
+  assert.ok(!css.includes('background:rgba(75,52,91,.55)'),'old purple glass still used');
+});
+test('ARX panel background is glass, with legacy near-black opaque color removed',()=>{
+  const a=run(false);
+  const css=a.children.filter(x=>x.tagName==='style'&&x.id==='arx-tools-style').map(x=>x.textContent).join('');
+  assert.ok(css.includes('background:rgba(70,70,70,.42)'));
+  assert.ok(css.includes('backdrop-filter:blur(1.6em)'));
+  assert.ok(!css.includes('background:rgba(15,20,29,.96)'));
+  assert.ok(!css.includes('background:rgba(16,24,32,.93)'));
+  assert.ok(!css.includes('background:#000a'));
+  assert.ok(!css.includes('background:rgba(108,83,128,.35)'));
+  assert.ok(css.includes('.arx-tools-panel-row button.focus'));
+});
+test('ARX SVG menu glyph inherits native Lampa focus color',()=>{
+  const a=run(false);
+  a.handlers.start({url:'https://example.org/movie.mkv',card:{imdb_id:'tt1234567'}});
+  const entry=a.panelRight.children.find(x=>(x.className||'').includes('arx-tools-panel-entry'));
+  assert.ok(entry);
+  assert.ok(entry.children.some(x=>(x.className||'').includes('arx-tools-glyph')));
+  const css=a.children.find(x=>x.tagName==='style'&&x.id==='arx-tools-style').textContent;
+  assert.ok(css.includes('pointer-events:none;color:inherit'));
+  assert.ok(css.includes('.arx-tools-panel-entry.focus,.arx-tools-panel-entry:focus{background:#fff!important;color:#000!important'));
+});
