@@ -1040,3 +1040,55 @@ test('Skip circular progress uses native translucent glass and does not run full
  a.handlers.start({url:'https://example.org/no-segments.mp4',card:{imdb_id:'tt1234567'}});
  assert.equal(a.children.find(x=>(x.className||'').includes('arx-tools-capsule')).style.display,'none');
 });
+
+test('Native Lampa embedded subtitle selection disables ARX overlay and keeps original callback',()=>{
+ const a=run(false);
+ a.handlers.start({url:'https://example.org/show.mp4',card:{imdb_id:'tt1234567'}});
+ let originalCalled=0;
+ const track={index:0,language:'eng',label:'Embedded English',onSelect(){originalCalled++;}};
+ a.handlers['v:subs']({subs:[track]});
+ a.api.subtitleUseCues([{start:5,end:7,text:'Привет'}],{lang:'rus',title:'ARX RU'});
+ assert.ok(a.playerSubs.some(x=>x.index===990001));
+ track.onSelect(track);
+ assert.equal(originalCalled,1);
+ const overlay=a.children.find(x=>x.className==='arx-tools-subtitles');
+ assert.equal(overlay.style.display,'none');
+});
+test('Native subs event does not duplicate ARX subtitle entry and keeps native array identity',()=>{
+ const a=run(false);
+ a.handlers.start({url:'https://example.org/show.mp4',card:{imdb_id:'tt1234567'}});
+ const source={index:3,language:'rus',label:'Russian'};
+ a.handlers['v:subs']({subs:[source]});
+ a.handlers['v:subs']({subs:[source]});
+ assert.equal(a.playerSubs.filter(x=>x.index===990001).length,1);
+ assert.equal(a.playerSubs[0],source);
+});
+test('Segment skip persists through final half-second and expires precisely at its end',()=>{
+ const a=run(false);
+ a.handlers.start({url:'https://example.org/s01e01.mp4',card:{imdb_id:'tt1234567'},
+   season:1,episode:1,segments:{skip:[{start:60,end:100}]}});
+ const capsule=a.children.find(x=>(x.className||'').includes('arx-tools-capsule'));
+ const skip=capsule.children.find(x=>(x.className||'').includes('arx-tools-skip selector'));
+ a.video.currentTime=99.75;a.video.events.timeupdate({type:'timeupdate'});
+ assert.equal(skip.style.display,'flex');
+ assert.equal(skip.textContent,'Пропустить: Заставка (00:01)');
+ assert.equal(skip.style['--arx-skip-progress'],'0.63%');
+ a.video.currentTime=100;a.video.events.timeupdate({type:'timeupdate'});
+ assert.equal(skip.style.display,'none');
+});
+test('Native subtitle selector sanitizes provider-provided HTML-like names',async()=>{
+ const a=run(false,{xhrResponse:(url)=>{
+   if(url.includes('opensubtitles-v3.strem.io'))
+     return {status:200,data:{subtitles:[{lang:'rus',url:'https://subs5.strem.io/en/file/1957291837',
+        subtitleFileName:'<img src=x onerror=alert(1)>',g:0}]}};
+   if(url.includes('rest.opensubtitles.org'))return {status:200,data:[]};
+   return {status:404,data:null};
+ }});
+ a.handlers.start({url:'https://example.org/show.mp4',card:{imdb_id:'tt1234567'}});
+ a.playerSubs.find(x=>x.index===990001).onSelect();
+ a.selectDialogs.at(-1).onSelect({kind:'search_ru'});
+ for(let i=0;i<15;i++)await Promise.resolve();
+ const file=a.selectDialogs.at(-1).items.find(x=>x.kind==='file');
+ assert.ok(file);
+ assert.ok(!file.title.includes('<')&&!file.title.includes('>'));
+});
