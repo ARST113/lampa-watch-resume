@@ -4,8 +4,9 @@ const fs=require('node:fs'),path=require('node:path'),vm=require('node:vm');
 const {test}=require('node:test');
 function run(exportsOnly=true, options={}) {
   let src=fs.readFileSync(path.join(__dirname,'..','arx_player_tools.js'),'utf8');
-  src=src.replace(/\}\)\(\);\s*$/,"window.__test={metadata,mapType,clock,put,parseSkipDB,parseIntroDB,parseTheIntroDB,parseAniSkip,parseIntroHater,fromLaunch,combine,fingerprint,appendManual,readManual,readChapters,readSubtitleSuggestions,remoteRequests,playerStart,playerVideo,tick,subtitleNormalize,srtParse,subtitleServer,subtitleFind,subtitleSelect,subtitleTranslate,subtitleDisable,subtitlePublicUrls,subtitleDownloadUrl,aiConfiguration,aiTranslationBatches,aiParseTranslation,aiChatRequest,subtitleUseCues,subtitleCancelTranslation,on,playerPanelVisible,hidePlayerInfo,aiEnabled,aiEndpoint,aiSettingsVisibility,skipNow};})();");
-  const handlers={},store={},settings=[],children=[],tvNodes=[],requests=[],timeouts=[];
+  src=src.replace(/\}\)\(\);\s*$/,"window.__test={metadata,mapType,clock,put,parseSkipDB,parseIntroDB,parseTheIntroDB,parseAniSkip,parseIntroHater,fromLaunch,combine,fingerprint,appendManual,readManual,readChapters,readSubtitleSuggestions,remoteRequests,playerStart,playerVideo,tick,subtitleNormalize,srtParse,subtitleServer,subtitleFind,subtitleSelect,subtitleTranslate,subtitleDisable,subtitlePublicUrls,subtitleDownloadUrl,aiConfiguration,aiTranslationBatches,aiParseTranslation,aiChatRequest,subtitleUseCues,subtitleCancelTranslation,on,playerPanelVisible,hidePlayerInfo,aiEnabled,aiEndpoint,aiSettingsVisibility,skipNow,nativeSubtitleSource,nativeSubtitlePicker,publishNativeSubtitleOptions,skipProgress};})();");
+  const handlers={},store={},settings=[],children=[],tvNodes=[],requests=[],timeouts=[],selectDialogs=[];
+  let playerSubs=[],panelRevealCount=0;
   let panelVisible=Boolean(options.panelVisible),panelObserver=null;
   const mockPanel={classList:{contains(name){return name==='panel--visible'&&panelVisible;}}};
   mockPanel.setVisible=function(flag){panelVisible=!!flag;if(panelObserver)panelObserver.callback();};
@@ -76,7 +77,13 @@ function run(exportsOnly=true, options={}) {
     Listener:{follow(k,f){handlers['app:'+k]=f;}},
     SettingsApi:{addComponent(x){settings.push(x);},addParam(x){settings.push(x);}},
     Noty:{show(){}},
-    Controller:activeTV,Navigator:navigator
+    Controller:activeTV,Navigator:navigator,
+    Select:{show(opts){selectDialogs.push(opts);}},
+    PlayerPanel:{
+      setSubs(items){playerSubs=items;},
+      reveal(){panelRevealCount++;},
+      toggle(){activeTV.toggle('player_panel');}
+    }
   };
   const window={Lampa:fakeLampa,Navigator:navigator,addEventListener(k,fn){handlers['window:'+k]=fn;}};
   window.MutationObserver=function(callback){
@@ -104,7 +111,8 @@ function run(exportsOnly=true, options={}) {
   vm.runInNewContext(src,context);
   if(!exportsOnly && handlers['app:app'])handlers['app:app']({type:'ready'});
   return {api:window.__test,handlers,settings,store,video,children,window,document:fakeDoc,
-    controller:activeTV,panelRight,navigator,requests,mockPanel,timeouts};
+    controller:activeTV,panelRight,navigator,requests,mockPanel,timeouts,selectDialogs,
+    get playerSubs(){return playerSubs;},get panelRevealCount(){return panelRevealCount;}};
 }
 function plain(x){return JSON.parse(JSON.stringify(x));}
 const e=run(),f=e.api;
@@ -949,4 +957,86 @@ test('Auto undo capsule is removed on the 3s timeout, manual on 5s timeout',()=>
  timeout.fn();
  assert.equal(undo.style.display,'none');
  assert.equal(capsule.style.display,'none');
+});
+
+test('TV Up on skip returns to player; Down opens native panel rather than ARX settings',()=>{
+ const a=run(false);
+ a.handlers.start({url:'https://example.org/E01.mp4',card:{imdb_id:'tt1234567'},
+  season:1,episode:1,segments:{skip:[{start:60,end:95}]}});
+ a.video.currentTime=65;a.video.events.timeupdate({type:'timeupdate'});
+ assert.equal(a.controller.enabled().name,'arx_tools_skip');
+ a.controller.controllers.arx_tools_skip.up();
+ assert.equal(a.controller.enabled().name,'player');
+ assert.equal(a.panelRevealCount,1);
+ assert.equal(a.selectDialogs.length,0);
+ a.controller.toggle('arx_tools_skip');
+ a.controller.controllers.arx_tools_skip.down();
+ assert.equal(a.controller.enabled().name,'player_panel');
+});
+test('ARX subtitle search is located inside native Lampa subtitle dropdown, not large ARX editor',()=>{
+ const a=run(false);
+ a.handlers.start({url:'https://example.org/E01.mp4',card:{imdb_id:'tt1234567'}});
+ assert.ok(a.playerSubs.some(x=>x.index===990001));
+ const native={index:3,language:'rus',label:'Встроенные субтитры',mode:'showing',selected:true,
+  onSelect(){}};
+ a.handlers['v:subs']({subs:[native]});
+ assert.equal(a.playerSubs[0],native,'native track must remain the exact original object');
+ const arx=a.playerSubs.find(x=>x.index===990001);
+ assert.ok(arx);
+ assert.equal(typeof arx.onSelect,'function');
+ arx.onSelect(arx);
+ assert.equal(a.selectDialogs.at(-1).title,'Субтитры · ARX');
+ assert.ok(a.selectDialogs.at(-1).items.some(x=>x.kind==='search_ru'));
+ const editor=a.children.find(x=>x.className==='arx-tools-panel');
+ assert.equal(editor.style.display,'none');
+});
+test('Selecting ARX subtitles from native menu searches directly and adds track options',async()=>{
+ const payload={subtitles:[{
+  lang:'rus',url:'https://subs5.strem.io/en/file/1957291837',
+  subtitleFileName:'Russian SRT',g:1
+ }]};
+ const a=run(false,{xhrResponse:(url)=>{
+  if(url.includes('opensubtitles-v3.strem.io'))return {status:200,data:payload};
+  if(url.includes('rest.opensubtitles.org'))return {status:200,data:[]};
+  return {status:404,data:null};
+ }});
+ a.handlers.start({url:'https://example.org/E01.mp4',card:{imdb_id:'tt1234567'}});
+ a.playerSubs.find(x=>x.index===990001).onSelect();
+ let select=a.selectDialogs.at(-1);
+ select.onSelect(select.items.find(x=>x.kind==='search_ru'));
+ for(let i=0;i<15;i++)await Promise.resolve();
+ assert.ok(a.requests.some(x=>x.url.includes('opensubtitles-v3.strem.io')));
+ const latest=a.selectDialogs.at(-1);
+ assert.ok(latest.items.some(x=>x.kind==='file'));
+ assert.equal(a.children.find(x=>x.className==='arx-tools-panel').style.display,'none');
+ latest.onBack();
+ assert.equal(a.controller.enabled().name,'player_panel');
+});
+test('Skip countdown ring tracks remaining fraction and hides immediately at segment end and on seek',()=>{
+ const a=run(false);
+ a.handlers.start({url:'https://example.org/E01.mp4',card:{imdb_id:'tt1234567'},
+  season:1,episode:1,segments:{skip:[{start:60,end:100}]}});
+ a.video.currentTime=70;a.video.events.timeupdate({type:'timeupdate'});
+ const capsule=a.children.find(x=>(x.className||'').includes('arx-tools-capsule'));
+ const skip=capsule.children.find(x=>(x.className||'').includes('arx-tools-skip selector'));
+ assert.equal(skip.style['--arx-skip-progress'],'75.00%');
+ a.video.currentTime=90;a.video.events.timeupdate({type:'timeupdate'});
+ assert.equal(skip.style['--arx-skip-progress'],'25.00%');
+ a.video.currentTime=100;a.video.events.timeupdate({type:'timeupdate'});
+ assert.equal(skip.style.display,'none');
+ assert.equal(capsule.style.display,'none');
+ a.video.currentTime=65;a.video.events.seeked({type:'seeked'});
+ assert.equal(skip.style.display,'flex');
+ a.video.currentTime=120;a.video.events.seeking({type:'seeking'});
+ assert.equal(skip.style.display,'none');
+});
+test('Skip circular progress uses native translucent glass and does not run full-video polling',()=>{
+ const a=run(false);
+ const css=a.children.find(x=>x.tagName==='style'&&x.id==='arx-tools-style').textContent;
+ assert.ok(css.includes('.arx-tools-capsule .arx-tools-skip:after'));
+ assert.ok(css.includes('conic-gradient('));
+ assert.ok(css.includes('--arx-skip-progress'));
+ assert.ok(css.includes('mask:radial-gradient('));
+ a.handlers.start({url:'https://example.org/no-segments.mp4',card:{imdb_id:'tt1234567'}});
+ assert.equal(a.children.find(x=>(x.className||'').includes('arx-tools-capsule')).style.display,'none');
 });
