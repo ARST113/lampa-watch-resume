@@ -908,7 +908,7 @@
     if(subtitles.aiRunning)
       items.push({title:'Отменить перевод ('+subtitles.progress+'%)',kind:'cancel'});
     subtitles.items.slice(0,25).forEach(function(entry){
-      items.push({title:entry.source+' · '+entry.title,
+      items.push({title:String(entry.source+' · '+entry.title).replace(/[<>]/g,''),
         subtitle:(entry.lang==='rus'?'Русский':'Английский'),kind:'file',entry:entry});
     });
     var detail=subtitles.status||'Поиск и загрузка без сервера ARX';
