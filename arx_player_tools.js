@@ -461,7 +461,7 @@
     if(!seekable(v,target)||target<=v.currentTime)return notice('ARX: поток не поддерживает перемотку');
     var previous=v.currentTime;
     current.lastSkip={segment:s,position:previous};current.ignored[s.type+'-'+s.start]=true;current.hover=null;
-    control.skip.style.display='none';clearUndo();
+    control.skip.style.display='none';stopSkipProgressTimer();clearUndo();
     if(tvControllerName()==='arx_tools_skip'&&L.Controller&&L.Controller.toggle)L.Controller.toggle('player');
     try{v.currentTime=target;}catch(e){notice('ARX: ошибка перемотки');return;}
     // Auto-skip undo is deliberately brief; manual skips get slightly longer.
@@ -584,7 +584,7 @@
     // Native Lampa timeupdate may be irregular. Use video.currentTime every
     // 200 ms, pausing naturally with the media and correcting on seeks.
     skipProgressTimer=setInterval(function(){
-      if(!current)return stopSkipProgressTimer();
+      if(!current||!current.hover)return stopSkipProgressTimer();
       var v=playerVideo();
       if(!v||v.ended)return hideSkip();
       if(current.hover){
@@ -592,10 +592,10 @@
         if(!isFinite(now)||now<seg.start||now>=seg.end)return hideSkip();
         skipProgress(seg,now);
       }
-      if(current)tick();
     },200);
   }
-  function hideSkip(){if(control.skip){control.skip.style.display='none';skipProgress(null,0);}
+  function hideSkip(){stopSkipProgressTimer();
+    if(control.skip){control.skip.style.display='none';skipProgress(null,0);}
     if(current)current.hover=null;
     arxCapsuleVisible();
     if(tvControllerName()==='arx_tools_skip'&&L.Controller&&L.Controller.toggle)L.Controller.toggle('player');}
@@ -663,6 +663,8 @@
           control.skip.title=skipLabel;
           skipProgress(found,now);
           control.skip.style.display=on('skip_ui',true)?'flex':'none';current.hover=found;
+          if(on('skip_ui',true))startSkipProgressTimer();
+          else stopSkipProgressTimer();
           arxCapsuleVisible();
           if(on('skip_ui',true))tvSkipFocus();
         }
@@ -835,7 +837,7 @@
     current={unique:unique,meta:m,data:p,remote:[],injected:[],segments:[],ignored:{},auto:{},key:'',
       durationKnown:duration()>0,hover:null,lastSkip:null,editType:'intro',markStart:null,
       markerHost:null,markerNode:null,markerFingerprint:''};
-    bindVideo();mountControls();startSkipProgressTimer();mergeCurrent();
+    bindVideo();mountControls();mergeCurrent();
     publishNativeSubtitleOptions();
     var timer=get('sleep','off'),minutes=positiveInt(timer);
     if(minutes>0)scheduleSleep(minutes,false);
