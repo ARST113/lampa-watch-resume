@@ -646,7 +646,7 @@
         if(s.source==='Lampa' && document.querySelector && document.querySelector('.player-skip'))return false;
         if(!on('type_'+s.type,s.type!=='preview'&&s.type!=='ad'&&s.type!=='postcredits'))return false;
         if(current.ignored[s.type+'-'+s.start])return false;
-        if(now>=s.start&&now<s.end-0.5){found=s;return true;}
+        if(now>=s.start&&now<s.end){found=s;return true;}
         return false;
       });
       if(found){
@@ -657,7 +657,7 @@
         }else if(!current.auto[key]){
           // Reliability only controls automatic skipping; no internal status text
           // is shown in the video player's button, title or accessibility label.
-          var skipLabel='Пропустить: '+NAMES[found.type]+' ('+fmt(found.end-now)+')';
+          var skipLabel='Пропустить: '+NAMES[found.type]+' ('+fmt(Math.ceil(found.end-now))+')';
           control.skip.textContent=skipLabel;
           control.skip.setAttribute('aria-label',skipLabel);
           control.skip.title=skipLabel;
@@ -1080,7 +1080,7 @@
       }
       // Only when the direct calls BOTH fail, try the configured proxy.
       subtitles.status='Прямые источники недоступны. Проверяю резервный прокси...';
-      if(control.panel&&control.panel.style.display!=='none')subtitleUIRefresh();
+      subtitleUIRefresh();
       var serial=m.season!==null&&m.episode!==null;
       var ep=serial?'&season='+m.season+'&episode='+m.episode:'';
       requestSubtitle(subtitleServer()+'/v1/subtitles/search?imdb_id='+m.imdb+ep+'&lang='+language,
@@ -1106,7 +1106,7 @@
         subtitleNotice('Не удалось скачать дорожку напрямую');return;
       }
       subtitles.status='Пробую загрузку через резервный прокси...';
-      if(control.panel&&control.panel.style.display!=='none')subtitleUIRefresh();
+      subtitleUIRefresh();
       requestSubtitle(server+'/v1/subtitles/file/'+id,'GET',null,'',false).then(function(v){
         if(token!==subtitles.token||!current)return;
         var alternate=v.ok&&v.data&&Array.isArray(v.data.cues)?v.data.cues:[];
@@ -1328,7 +1328,7 @@
             });
             subtitles.progress=Math.round(100*(i+1)/parts.length);
             subtitles.status='ИИ-перевод '+subtitles.progress+'% · '+(i+1)+'/'+parts.length+' частей';
-            if(control.panel&&control.panel.style.display!=='none')subtitleUIRefresh();
+            subtitleUIRefresh();
             next(i+1);
           }else if(attempts<2 && (r.status===429||r.status>=500&&r.status<600)){
             setTimeout(send,1500);
@@ -1349,7 +1349,7 @@
     ++subtitles.token;subtitles.aiRunning=false;subtitles.progress=0;
     if(subtitles.aiRequest){try{subtitles.aiRequest.abort();}catch(e){}}
     subtitles.aiRequest=null;subtitles.status='ИИ-перевод остановлен';
-    if(current&&control.panel&&control.panel.style.display!=='none')subtitleUIRefresh();
+    if(current)subtitleUIRefresh();
   }
   function subtitlePanel(parent){
     var row=line(parent);
