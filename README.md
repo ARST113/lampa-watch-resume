@@ -42,7 +42,7 @@ Nova Skin не требуется и не используется.
 
 ---
 
-## Дополнительный плагин: ARX Player Tools 0.6.0
+## Дополнительный плагин: ARX Player Tools 0.6.1
 
 [**Установить JavaScript-плагин**](https://arst113.github.io/lampa-watch-resume/arx_player_tools.js) · [Исходники](arx_player_tools.js) · [Подробная документация](ARX_PLAYER_TOOLS.md)
 
@@ -56,4 +56,6 @@ Nova Skin не требуется и не используется.
 
 Основной плагин **watch_resume.js** в этом репозитории не менялся.
 
-[Тесты ARX Player Tools 0.6.0](https://github.com/ARST113/lampa-watch-resume/actions/runs/38641778456).
+[Тесты ARX Player Tools 0.6.1](https://github.com/ARST113/lampa-watch-resume/actions/runs/38641778456).
+
+**0.6.1:** стрелка Up больше не открывает большое меню ARX; поиск OpenSubtitles и ИИ-команды находятся в штатном меню субтитров Lampa через `PlayerPanel.setSubs`. Текстовая кнопка пропуска показывает круговой отсчёт и исчезает на точной границе сегмента, обновление прогресса работает только во время показа. [88 успешных тестов](https://github.com/ARST113/lampa-watch-resume/actions/runs/40475037822).
