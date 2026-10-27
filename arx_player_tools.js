@@ -938,7 +938,7 @@
   }
   function subtitleNotice(msg){
     subtitles.status=msg;notice('ARX субтитры: '+msg);
-    if(control.panel && control.panel.style.display!=='none')subtitleUIRefresh();
+    subtitleUIRefresh();
   }
   function requestSubtitle(url,method,data,privateToken,textMode){
     return new Promise(function(resolve){
