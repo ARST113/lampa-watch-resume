@@ -808,6 +808,7 @@
     playerToken++;
     if(cacheTimer)clearTimeout(cacheTimer);cacheTimer=null;
     stopSkipProgressTimer();
+    nativeSubtitleMenuOpen=false;nativeSubtitleTracks=[];
     cancelSleep();restoreTrack();subtitleDisable();hideSkip();clearUndo();closePanel();
     unwatchPlayerPanel();
     if(current && current.markerNode && current.markerNode.parentNode)current.markerNode.parentNode.removeChild(current.markerNode);
@@ -830,10 +831,12 @@
     var unique=String(p.url||'')+'|'+(m.imdb||m.tmdb||m.mal||'')+'|'+m.season+'|'+m.episode;
     if(current&&current.unique===unique&&unique!=='|null|null'){bindVideo();return;}
     clearEpisode();controls();
+    nativeSubtitleTracks=[];nativeSubtitleMenuOpen=false;
     current={unique:unique,meta:m,data:p,remote:[],injected:[],segments:[],ignored:{},auto:{},key:'',
       durationKnown:duration()>0,hover:null,lastSkip:null,editType:'intro',markStart:null,
       markerHost:null,markerNode:null,markerFingerprint:''};
     bindVideo();mountControls();startSkipProgressTimer();mergeCurrent();
+    publishNativeSubtitleOptions();
     var timer=get('sleep','off'),minutes=positiveInt(timer);
     if(minutes>0)scheduleSleep(minutes,false);
     if(on('skip',true)&&!window.__skipIntroLoaded)refreshRemote(false);
@@ -855,6 +858,76 @@
 
   // ARX integrated subtitles: ready-made OpenSubtitles + optional private AI backend.
   var subtitles={items:[],cues:[],active:false,lang:'rus',status:'',token:0,job:'',progress:0,last:null,aiRunning:false,aiRequest:null};
+  // Native Lampa subtitle selector integration: PlayerPanel.setSubs feeds
+  // Option.setSubtitles, the same control used for embedded tracks.
+  var nativeSubtitleTracks=[],nativeSubtitleMenuOpen=false;
+  function publishNativeSubtitleOptions(){
+    if(!current||!L.PlayerPanel||typeof L.PlayerPanel.setSubs!=='function')return;
+    var native=nativeSubtitleTracks.slice();
+    native.forEach(function(track){
+      if(!track||track.index===-1||track._arxIntercepted)return;
+      // Disable external overlay if user returns to a built-in subtitle track.
+      var old=track.onSelect;
+      track.onSelect=function(a){
+        if(subtitles.active)subtitleDisable();
+        if(typeof old==='function')old(a);
+      };
+      track._arxIntercepted=true;
+    });
+    native.push({
+      index:990001,language:'ARX',label:'Поиск OpenSubtitles · перевод',
+      selected:false,mode:'disabled',onSelect:function(){nativeSubtitlePicker();}
+    });
+    L.PlayerPanel.setSubs(native);
+  }
+  function nativeSubtitleSource(e){
+    if(!e||!Array.isArray(e.subs))return;
+    nativeSubtitleTracks=e.subs.filter(function(x){return x&&x.index!==990001;});
+    publishNativeSubtitleOptions();
+  }
+  function subtitleUIRefresh(){
+    if(nativeSubtitleMenuOpen)nativeSubtitlePicker();
+  }
+  function nativeSubtitlePicker(){
+    if(!current)return;
+    if(!L.Select||typeof L.Select.show!=='function'){
+      notice('ARX: требуется штатный список субтитров Lampa');return;
+    }
+    nativeSubtitleMenuOpen=true;
+    var items=[
+      {title:'Поиск русских субтитров',kind:'search_ru'},
+      {title:'Поиск английских субтитров',kind:'search_en'}
+    ];
+    if(subtitles.active){
+      if(aiEnabled()&&subtitles.lang!=='rus')
+        items.push({title:'ИИ-перевод на русский',kind:'translate'});
+      items.push({title:'Отключить субтитры ARX',kind:'disable'});
+    }
+    if(subtitles.aiRunning)
+      items.push({title:'Отменить перевод ('+subtitles.progress+'%)',kind:'cancel'});
+    subtitles.items.slice(0,25).forEach(function(entry){
+      items.push({title:entry.source+' · '+entry.title,
+        subtitle:(entry.lang==='rus'?'Русский':'Английский'),kind:'file',entry:entry});
+    });
+    var detail=subtitles.status||'Поиск и загрузка без сервера ARX';
+    L.Select.show({
+      title:'Субтитры · ARX',
+      items:items,
+      nomark:true,
+      onBack:function(){
+        nativeSubtitleMenuOpen=false;
+        if(L.Controller&&L.Controller.toggle)L.Controller.toggle('player_panel');
+      },
+      onSelect:function(a){
+        if(a.kind==='search_ru')subtitleFind('rus');
+        else if(a.kind==='search_en')subtitleFind('eng');
+        else if(a.kind==='file')subtitleSelect(a.entry);
+        else if(a.kind==='translate')subtitleTranslate();
+        else if(a.kind==='cancel')subtitleCancelTranslation();
+        else if(a.kind==='disable'){subtitleDisable();nativeSubtitlePicker();}
+      }
+    });
+  }
   function subtitleServer(){
     var v=String(get('subtitle_api','')||'').trim().replace(/\/+$/,'');
     if(/^https:\/\/[a-z0-9._:-]+(?:\/[a-z0-9/_-]*)?$/i.test(v))return v;
@@ -863,7 +936,7 @@
   }
   function subtitleNotice(msg){
     subtitles.status=msg;notice('ARX субтитры: '+msg);
-    if(control.panel && control.panel.style.display!=='none')renderPanel();
+    if(control.panel && control.panel.style.display!=='none')subtitleUIRefresh();
   }
   function requestSubtitle(url,method,data,privateToken,textMode){
     return new Promise(function(resolve){
@@ -969,7 +1042,7 @@
       var card=readCard(current.data),tmdb=m.tmdb;
       if(tmdb&&L.TMDB&&typeof L.TMDB.external_imdb_id==='function'){
         var startToken=++subtitles.token;
-        subtitles.status='Определяю IMDb ID через TMDB...';renderPanel();
+        subtitles.status='Определяю IMDb ID через TMDB...';subtitleUIRefresh();
         var isTV=(!m.movie)||(card&&(card.number_of_seasons||card.first_air_date||
           card.media_type==='tv'||card.name||card.original_name));
         try{
@@ -987,7 +1060,7 @@
     var token=++subtitles.token;
     subtitles.items=[];subtitles.lang=language;
     subtitles.status='Поиск '+(language==='rus'?'русских':'английских')+' субтитров...';
-    renderPanel();
+    subtitleUIRefresh();
     var urls=subtitlePublicUrls(m,language);
     Promise.all([
       subtitlePublicRequest(urls.stremio,false),
@@ -1005,7 +1078,7 @@
       }
       // Only when the direct calls BOTH fail, try the configured proxy.
       subtitles.status='Прямые источники недоступны. Проверяю резервный прокси...';
-      if(control.panel&&control.panel.style.display!=='none')renderPanel();
+      if(control.panel&&control.panel.style.display!=='none')subtitleUIRefresh();
       var serial=m.season!==null&&m.episode!==null;
       var ep=serial?'&season='+m.season+'&episode='+m.episode:'';
       requestSubtitle(subtitleServer()+'/v1/subtitles/search?imdb_id='+m.imdb+ep+'&lang='+language,
@@ -1020,7 +1093,7 @@
   function subtitleSelect(item){
     if(!current||!item||!/^\d{3,20}$/.test(String(item.id)))return;
     var token=++subtitles.token,id=String(item.id);
-    subtitles.status='Загрузка '+item.title;renderPanel();
+    subtitles.status='Загрузка '+item.title;subtitleUIRefresh();
     subtitlePublicRequest(subtitleDownloadUrl(id),true).then(function(r){
       if(token!==subtitles.token||!current)return;
       var cues=r.ok?srtParse(r.data):[];
@@ -1031,7 +1104,7 @@
         subtitleNotice('Не удалось скачать дорожку напрямую');return;
       }
       subtitles.status='Пробую загрузку через резервный прокси...';
-      if(control.panel&&control.panel.style.display!=='none')renderPanel();
+      if(control.panel&&control.panel.style.display!=='none')subtitleUIRefresh();
       requestSubtitle(server+'/v1/subtitles/file/'+id,'GET',null,'',false).then(function(v){
         if(token!==subtitles.token||!current)return;
         var alternate=v.ok&&v.data&&Array.isArray(v.data.cues)?v.data.cues:[];
@@ -1043,7 +1116,7 @@
   function subtitleUseCues(cues,item){
     subtitles.cues=cues;subtitles.active=true;subtitles.lang=item.lang||subtitles.lang;
     subtitles.last=null;subtitles.status='Загружено '+cues.length+' реплик';
-    subtitleTick();renderPanel();
+    subtitleTick();subtitleUIRefresh();publishNativeSubtitleOptions();
   }
   function subtitleDisable(){
     ++subtitles.token;subtitles.cues=[];subtitles.active=false;subtitles.last=null;
@@ -1231,7 +1304,7 @@
     if(parts.length>120){subtitleNotice('Слишком большой файл для прямого перевода: '+parts.length+' запросов');return;}
     var result=[],failed=false;
     subtitles.aiRunning=true;subtitles.progress=0;
-    subtitles.status='ИИ-перевод '+config.provider+': 0%';renderPanel();
+    subtitles.status='ИИ-перевод '+config.provider+': 0%';subtitleUIRefresh();
     function alive(){return identifier===subtitles.token && !!current && aiEnabled();}
     function next(i){
       if(!alive()){subtitles.aiRunning=false;return;}
@@ -1239,7 +1312,7 @@
         subtitles.cues=result;subtitles.lang='rus';subtitles.active=true;subtitles.last=null;
         subtitles.aiRunning=false;subtitles.progress=100;
         subtitles.status='ИИ-перевод завершён ('+source.length+' реплик)';
-        subtitleTick();renderPanel();return;
+        subtitleTick();subtitleUIRefresh();return;
       }
       var attempts=0;
       function send(){
@@ -1253,7 +1326,7 @@
             });
             subtitles.progress=Math.round(100*(i+1)/parts.length);
             subtitles.status='ИИ-перевод '+subtitles.progress+'% · '+(i+1)+'/'+parts.length+' частей';
-            if(control.panel&&control.panel.style.display!=='none')renderPanel();
+            if(control.panel&&control.panel.style.display!=='none')subtitleUIRefresh();
             next(i+1);
           }else if(attempts<2 && (r.status===429||r.status>=500&&r.status<600)){
             setTimeout(send,1500);
@@ -1274,7 +1347,7 @@
     ++subtitles.token;subtitles.aiRunning=false;subtitles.progress=0;
     if(subtitles.aiRequest){try{subtitles.aiRequest.abort();}catch(e){}}
     subtitles.aiRequest=null;subtitles.status='ИИ-перевод остановлен';
-    if(current&&control.panel&&control.panel.style.display!=='none')renderPanel();
+    if(current&&control.panel&&control.panel.style.display!=='none')subtitleUIRefresh();
   }
   function subtitlePanel(parent){
     var row=line(parent);
@@ -1282,7 +1355,7 @@
     if(aiEnabled())panelButton(row,'Английские для ИИ',function(){subtitleFind('eng');});
     if(subtitles.active){
       if(aiEnabled()&&subtitles.lang!=='rus')panelButton(row,'ИИ-перевод на русский',subtitleTranslate);
-      panelButton(row,'Отключить ARX-субтитры',function(){subtitleDisable();renderPanel();});
+      panelButton(row,'Отключить ARX-субтитры',function(){subtitleDisable();subtitleUIRefresh();});
     }
     if(subtitles.status)parent.appendChild(make('div','arx-tools-legend',subtitles.status));
     subtitles.items.slice(0,12).forEach(function(item){
@@ -1444,7 +1517,10 @@
     L.Player.listener.follow('start',playerStart);
     L.Player.listener.follow('ready',function(data){if(!current)playerStart(data);bindVideo();tick();});
     L.Player.listener.follow('destroy',clearEpisode);
-    if(L.PlayerVideo&&L.PlayerVideo.listener)L.PlayerVideo.listener.follow('timeupdate',tick);
+    if(L.PlayerVideo&&L.PlayerVideo.listener){
+      L.PlayerVideo.listener.follow('timeupdate',tick);
+      L.PlayerVideo.listener.follow('subs',nativeSubtitleSource);
+    }
     tvRegister();
     if(!keyBound){keyBound=true;window.addEventListener('keydown',keydown,true);}
     if(window.__skipIntroLoaded)notice('ARX: сторонний Auto Skip включён; собственный пропуск отключён');
